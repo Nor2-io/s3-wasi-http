@@ -1,0 +1,17 @@
+[package]
+name = "s3-wasi-http"
+version = '0.0.1'
+edition = '2021'
+authors = ["Timmy Silesmo"]
+description = "Basic S3 client using WASI HTTP"
+license = "Apache-2.0"
+repository = "https://github.com/Nor2-io/s3-wasi-http"
+keywords = ["s3"]
+
+[dependencies]
+wstd = "0.5.3"
+anyhow = "1.0.96"
+hmac = "0.12.1"
+sha2 = "0.10.8"
+hex = "0.4.3"
+chrono = "0.4.40"

@@ -1,0 +1,488 @@
+use chrono::{DateTime, Utc};
+
+
+pub enum XAmzCannedAcl {
+    Private,
+    PublicRead,
+    PublicReadWrite,
+    AuthRead,
+    AWSExecRead,
+    BucketOwnerRead,
+    BucketOwnerFullControl,
+    Acl(String),
+}
+
+pub enum XAmzChecksum {
+    CRC32(String),
+    CRC32C(String),
+    CRC64NVME(String),
+    SHA1(String),
+    Sha256(String),
+    Checksum(String, String),
+}
+
+pub enum XAmzGrants {
+    FullControl,
+    Read,
+    ReadACP,
+    WriteACP,
+
+}
+
+pub enum XAmzObjectLockMode {
+    Governance,
+    Compliance
+}
+
+pub enum XAmzServerSideEncryption {
+    AES256,
+    KMS,
+    KMSDSSE,
+    Algorithm(String),
+}
+
+pub enum XAmzStorageClass {
+    Standard,
+    ReducedRedundancy,
+    StandardIA,
+    OnezoneIA,
+    IntelligentTiering,
+    Glacier,
+    DeepArchive,
+    Outposts,
+    GlacierIR,
+    Snow,
+    ExpressOneZone,
+    StorageClass(String),
+}
+pub(crate) fn storage_class_from_str(class: String) -> XAmzStorageClass {
+    match class.to_lowercase() {
+        c if c == "standard" => XAmzStorageClass::Standard,
+        c if c == "reduced_redundancy" => XAmzStorageClass::ReducedRedundancy,
+        c if c == "glacier" => XAmzStorageClass::Glacier,
+        c if c == "standard_ia" => XAmzStorageClass::StandardIA,
+        c if c == "onezone_ia" => XAmzStorageClass::OnezoneIA,
+        c if c == "intelligent_tiering" => XAmzStorageClass::IntelligentTiering,
+        c if c == "deep_archive" => XAmzStorageClass::DeepArchive,
+        c if c == "outposts" => XAmzStorageClass::Outposts,
+        c if c == "glacier_ir" => XAmzStorageClass::GlacierIR,
+        c if c == "snow" => XAmzStorageClass::Snow,
+        c if c == "express_onezone" => XAmzStorageClass::ExpressOneZone,
+
+        c => XAmzStorageClass::StorageClass(c)
+    }
+}
+
+/// Set x-amz headers on a request
+/// 
+/// see [super::S3RequestBuilder::set_x_amz_headers]
+pub struct XAmzHeaders {
+    checksum_mode: bool,
+    expected_bucket_owner: Option<String>,
+    request_payer: bool,
+
+    encryption_customer_algorithm: Option<String>,
+    encryption_customer_key: Option<String>,
+    encryption_customer_key_md5: Option<String>,
+    encryption_algorithm: Option<XAmzServerSideEncryption>,
+    encryption_kms_key_id: Option<String>,
+    encryption_bucket_key: bool,
+    encryption_context: Option<String>,
+
+    object_lock_legal_hold: bool,
+    object_lock_mode: Option<XAmzObjectLockMode>,
+    object_lock_retain_until: Option<DateTime<Utc>>,
+
+
+    canned_acl: Option<XAmzCannedAcl>,
+    checksum: Option<XAmzChecksum>,
+    grants: Vec<XAmzGrants>,
+    storage_class: Option<XAmzStorageClass>,
+
+    tagging: Vec<(String, String)>,
+    website_redirect_location: Option<String>,
+    write_offset: Option<i32>,
+
+
+    headers: Vec<(String, String)>,
+}
+
+impl Default for XAmzHeaders {
+    fn default() -> Self {
+        Self { 
+            checksum_mode: false, 
+            expected_bucket_owner: None, 
+            request_payer: false, 
+
+            encryption_customer_algorithm: None, 
+            encryption_customer_key: None, 
+            encryption_customer_key_md5: None,
+            encryption_algorithm: None,
+            encryption_kms_key_id: None,
+            encryption_bucket_key: false,
+            encryption_context: None,
+
+            object_lock_legal_hold: false,
+            object_lock_mode: None,
+            object_lock_retain_until: None,
+
+            canned_acl: None,
+            checksum: None,
+            grants: Vec::new(),
+            storage_class: None,
+
+            tagging: Vec::new(),
+            website_redirect_location: None,
+            write_offset: None,
+
+            headers: Vec::new()
+        }
+    }
+}
+
+impl XAmzHeaders {
+    pub fn enable_checksum_mode(&mut self) -> &mut Self {
+        self.checksum_mode = true;
+        self
+    }
+    pub fn expected_bucket_owner(&mut self, owner: &str) -> &mut Self {
+        self.expected_bucket_owner = Some(owner.to_owned());
+        self
+    }
+    pub fn enable_request_payer(&mut self) -> &mut Self {
+        self.request_payer = true;
+        self
+    }
+
+    pub fn encryption_customer_algorithm(&mut self, algorithm: &str) -> &mut Self {
+        self.encryption_customer_algorithm = Some(algorithm.to_owned());
+        self
+    }
+    pub fn encryption_customer_key(&mut self, base64_encoded_key: &str) -> &mut Self {
+        self.encryption_customer_key = Some(base64_encoded_key.to_owned());
+        self
+    }
+    pub fn encryption_customer_key_md5(&mut self, base64_encoded_key_md5: &str) -> &mut Self {
+        self.encryption_customer_key_md5 = Some(base64_encoded_key_md5.to_owned());
+        self
+    }
+    pub fn encryption_algorithm(&mut self, algorithm: XAmzServerSideEncryption) -> &mut Self {
+        self.encryption_algorithm = Some(algorithm);
+        self
+    } 
+    pub fn encryption_kms_key_id(&mut self, key_id: &str) -> &mut Self {
+        self.encryption_kms_key_id = Some(key_id.to_owned());
+        self
+    }
+    pub fn set_encryption_bucket_key(&mut self) -> &mut Self {
+        self.encryption_bucket_key = true;
+        self
+    }
+    pub fn encryption_context(&mut self, context: String) -> &mut Self {
+        self.encryption_context = Some(context);
+        self
+    }
+
+    pub fn set_object_lock_legal_hold(&mut self) -> &mut Self {
+        self.object_lock_legal_hold = true;
+        self
+    }
+    pub fn object_lock_mode(&mut self, mode: XAmzObjectLockMode) -> &mut Self {
+        self.object_lock_mode = Some(mode);
+        self
+    }
+    pub fn object_lock_retain_until(&mut self, date: DateTime<Utc>) -> &mut Self {
+        self.object_lock_retain_until = Some(date);
+        self
+    }
+
+    pub fn canned_acl(&mut self, acl: XAmzCannedAcl) -> &mut Self {
+        self.canned_acl = Some(acl);
+        self
+    }
+    pub fn checksum(&mut self, checksum: XAmzChecksum) -> &mut Self {
+        self.checksum = Some(checksum);
+        self
+    }
+    pub fn add_grant(&mut self, grant: XAmzGrants) -> &mut Self {
+        self.grants.push(grant);
+        self
+    }
+    pub fn storage_class(&mut self, class: XAmzStorageClass) -> &mut Self {
+        self.storage_class = Some(class);
+        self
+    }
+
+    pub fn add_tag(&mut self, key: &str, value: &str) -> &mut Self {
+        self.tagging.push((
+            key.to_owned(), 
+            value.to_owned()
+        ));
+        self
+    }
+    pub fn website_redirect_location(&mut self, location: String) -> &mut Self {
+        self.website_redirect_location = Some(location);
+        self
+    }
+    pub fn write_offset(&mut self, bytes: i32) -> &mut Self {
+        self.write_offset = Some(bytes);
+        self
+    }
+
+    pub fn add_header(&mut self, key: &str, value: &str) -> &mut Self {
+        self.headers.push((key.to_lowercase(), value.trim().to_owned()));
+        self
+    }
+
+    fn get_encryption_algorithm(&self) -> Option<String> {
+        match &self.encryption_algorithm {
+            Some(algorithm) => {
+                let a = match algorithm {
+                    XAmzServerSideEncryption::AES256 => "AES256",
+                    XAmzServerSideEncryption::KMS => "aws:kms",
+                    XAmzServerSideEncryption::KMSDSSE => "aws:kms:dsse",
+                    XAmzServerSideEncryption::Algorithm(algo) => algo,
+                };
+
+                Some(a.to_owned())
+            },
+            None => None,
+        }
+    }
+    fn get_canned_acl(&self) -> Option<String> {
+        match &self.canned_acl {
+            Some(acl) => {
+                let a = match acl {
+                    XAmzCannedAcl::Private => "private",
+                    XAmzCannedAcl::PublicRead => "public-read",
+                    XAmzCannedAcl::PublicReadWrite => "public-read-write",
+                    XAmzCannedAcl::AuthRead => "authenticated-read",
+                    XAmzCannedAcl::AWSExecRead => "aws-exec-read",
+                    XAmzCannedAcl::BucketOwnerRead => "bucket-owner-read",
+                    XAmzCannedAcl::BucketOwnerFullControl => "bucket-owner-full-control",
+                    XAmzCannedAcl::Acl(str) => str,
+                };
+
+                Some(a.to_owned())
+            },
+            None => None,
+        }
+    }
+    fn get_checksum_header(&self) -> Option<(String, String)> {
+        match &self.checksum {
+            Some(checksum) => {
+                let (key, check) = match checksum {
+                    XAmzChecksum::CRC32(sum) => {
+                        (String::from("crc32"), sum)
+                    },
+                    XAmzChecksum::CRC32C(sum) => {
+                        (String::from("crc32c"), sum)
+                    },
+                    XAmzChecksum::CRC64NVME(sum) => {
+                        (String::from("crc64nvme"), sum)
+                    },
+                    XAmzChecksum::SHA1(sum) => {
+                        (String::from("sha1"), sum)
+                    },
+                    XAmzChecksum::Sha256(sum) => {
+                        (String::from("sha256"), sum)
+                    },
+                    XAmzChecksum::Checksum(k, sum) => (k.to_owned(), sum),
+                };
+
+                Some((format!("x-amz-checksum-{key}"), check.to_owned()))
+            },
+            None => None,
+        }
+    }
+    fn get_grants_headers(&self) -> Vec<(String, String)> {
+        let mut headers = Vec::new();
+        for grant in &self.grants {
+            match grant {
+                XAmzGrants::FullControl => {
+                    headers.push((
+                        String::from("x-amz-grant-full-control"), 
+                        String::new()
+                    ));
+                },
+                XAmzGrants::Read => {
+                    headers.push((
+                        String::from("x-amz-grant-read"), 
+                        String::new()
+                    ));
+                },
+                XAmzGrants::ReadACP => {
+                    headers.push((
+                        String::from("x-amz-grant-read-acp"), 
+                        String::new()
+                    ));
+                },
+                XAmzGrants::WriteACP => {
+                    headers.push((
+                        String::from("x-amz-grant-write-acp"), 
+                        String::new()
+                    ));
+                },
+            }
+        }
+
+        headers
+    }
+    fn get_storage_class(&self) -> Option<String> {
+        match &self.storage_class {
+            Some(class) => {
+                let c =match class {
+                    XAmzStorageClass::Standard => "STANDARD",
+                    XAmzStorageClass::ReducedRedundancy => "REDUCED_REDUNDANCY",
+                    XAmzStorageClass::StandardIA => "STANDARD_IA",
+                    XAmzStorageClass::OnezoneIA => "ONEZONE_IA",
+                    XAmzStorageClass::IntelligentTiering => "INTELLIGENT_TIERING",
+                    XAmzStorageClass::Glacier => "GLACIER",
+                    XAmzStorageClass::DeepArchive => "DEEP_ARCHIVE",
+                    XAmzStorageClass::Outposts => "OUTPOSTS",
+                    XAmzStorageClass::GlacierIR => "GLACIER_IR",
+                    XAmzStorageClass::Snow => "SNOW",
+                    XAmzStorageClass::ExpressOneZone => "EXPRESS_ONEZONE",
+                    XAmzStorageClass::StorageClass(class_str) => &class_str,
+                };
+
+                Some(c.to_owned())
+            },
+            None => None,
+        }
+    }
+    fn get_tagging(&self) -> Option<String> {
+        if self.tagging.is_empty() {
+            return None
+        }
+
+
+        let mut tags = String::new();
+        let mut prefix = "";
+        for (k,v) in &self.tagging {
+            tags.push_str(prefix);
+            tags.push_str(k);
+            tags.push('=');
+            tags.push_str(v);
+
+            prefix = "&"
+        }
+
+        Some(tags)
+    }
+    
+    pub(crate) fn get_headers(&self) -> Vec<(String, String)> {
+        let mut headers = Vec::new();
+        if self.checksum_mode {
+            headers.push((
+                String::from("x-amz-checksum-mode"), 
+                String::from("ENABLED")));
+        }
+        if let Some(owner) = &self.expected_bucket_owner {
+            headers.push((
+                String::from("x-amz-expected-bucket-owner"), 
+                owner.to_owned()
+            ));
+        }
+        if self.request_payer {
+            headers.push((
+                String::from("x-amz-request-payer"), 
+                String::from("requester")));
+        }
+
+        if let Some(algorithm) = &self.encryption_customer_algorithm {
+            headers.push((
+                String::from("x-amz-server-side-encryption-customer-algorithm"), 
+                algorithm.to_owned()
+            ));
+        }
+        if let Some(key) = &self.encryption_customer_key {
+            headers.push((
+                String::from("x-amz-server-side-encryption-customer-key"), 
+                key.to_owned()
+            ));
+        }
+        if let Some(md5) = &self.encryption_customer_key_md5 {
+            headers.push((
+                String::from("x-amz-server-side-encryption-customer-key-MD5"), 
+                md5.to_owned()
+            ));
+        }
+        if let Some(algorithm) = self.get_encryption_algorithm() {
+            headers.push((
+                String::from("x-amz-server-side-encryption"),
+                algorithm
+            ));
+        }
+        if let Some(key) = &self.encryption_kms_key_id {
+            headers.push((
+                String::from("x-amz-server-side-encryption-aws-kms-key-id"),
+                key.to_owned()
+            ));
+        }
+        if self.encryption_bucket_key {
+            headers.push((
+                String::from("x-amz-server-side-encryption-bucket-key-enabled"),
+                String::from("true")
+            ));
+        }
+        if let Some(context) = &self.encryption_context {
+            headers.push((
+                String::from("x-amz-server-side-encryption-context"),
+                context.to_owned()
+            ));
+        }
+
+        if let Some(acl) = self.get_canned_acl() {
+            headers.push((
+                String::from("x-amz-acl"),
+                acl
+            ));
+        }
+        if let Some((key, value)) = self.get_checksum_header() {
+            headers.push((
+                key,
+                value
+            ));
+        }
+        let grants = self.get_grants_headers();
+        for (key, value) in grants {
+            headers.push((
+                key,
+                value
+            ));
+        }
+        if let Some(class) = self.get_storage_class() {
+            headers.push((
+                String::from("x-amz-storage-class"),
+                class
+            ));
+        }
+        
+        if let Some(tagging) = self.get_tagging() {
+            headers.push((
+                String::from("x-amz-tagging"),
+                tagging
+            ));
+        }
+        if let Some(redirect) = &self.website_redirect_location {
+            headers.push((
+                String::from("x-amz-website-redirect-location"),
+                redirect.to_owned()
+            ));
+        }
+        if let Some(offset) = self.write_offset {
+            headers.push((
+                String::from("x-amz-write-offset-bytes"),
+                offset.to_string()
+            ));
+        }
+
+
+        for (key, value) in &self.headers {
+            headers.push((key.to_owned(), value.to_owned()));
+        }
+
+        headers
+    }
+}

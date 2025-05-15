@@ -2,15 +2,16 @@ use std::{marker::PhantomData, str::FromStr};
 
 use conditional_headers::ConditionalHeaders;
 use content_headers::ContentHeaders;
-use x_amz_headers::{XAmzHeaders, XAmzStorageClass};
+use x_amz_headers::{storage_class_from_str, XAmzHeaders, XAmzStorageClass};
 
 use http::{response::Parts, StatusCode};
 use percent_encoding::{AsciiSet, CONTROLS};
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Ok, Result};
 use chrono::{DateTime, Utc};
 use hmac::{Hmac, Mac};
 use sha2::{Digest, Sha256};
 use wstd::http::{body::{BoundedBody, IncomingBody}, HeaderName, HeaderValue, IntoBody, Method, Request, Response, Scheme, Uri};
+use xml::{reader::XmlEvent, EventReader};
 
 use crate::AWS_SERVICE;
 
@@ -78,6 +79,40 @@ pub(crate) fn checksum_algorithm_from_str(algo: String) -> ChecksumAlgorithm {
     }
 }
 
+pub(crate) fn parse_xml_string(parser: &mut EventReader<&[u8]>, field: &str) -> Result<String> {
+    if let XmlEvent::Characters(value) = parser.next()? {
+        Ok(value)
+    } else {
+        return Err(anyhow!("Invalid response object, {field} has no value"))
+    }
+}
+
+pub(crate) fn parse_xml_bool(parser: &mut EventReader<&[u8]>, field: &str) -> Result<bool> {
+    if let XmlEvent::Characters(value) = parser.next()? {
+        match value.to_lowercase() {
+            v if v == "true" => Ok(true),
+            v if v == "false" => Ok(false),
+            _ => {
+                return Err(anyhow!("Invalid response object, {field} is not a boolean, value: {value}"))
+            }
+        }
+    } else {
+        return Err(anyhow!("Invalid response object, {field} element has no value"))
+    }
+}
+
+pub(crate) fn parse_xml_value<T>(parser: &mut EventReader<&[u8]>, field: &str) -> Result<T> 
+    where T: FromStr {
+    if let XmlEvent::Characters(value) = parser.next()? {
+        match value.parse::<T>() {
+            std::result::Result::Ok(v) => Ok(v),
+            Err(_) => Err(anyhow!("Unable to parse value for field {field}, value {value}")),
+        }
+    } else {
+        return Err(anyhow!("Invalid response object, {field} has no value"))
+    }
+}
+
 pub enum ApiChecksumType {
     Composite,
     FullObject,
@@ -100,10 +135,124 @@ pub struct ApiObject {
     pub storage_class: XAmzStorageClass,
 }
 
+impl ApiObject {
+    pub fn parse(parser: &mut EventReader<&[u8]>) -> Result<Self> {
+        let mut api_object = ApiObject {
+            checksum_algorithm: None,
+            checksum_type: None,
+            etag: String::new(),
+            key: String::new(),
+            last_modified: Utc::now(),
+            owner: None,
+            restore_status: None,
+            size: 0,
+            storage_class: XAmzStorageClass::Standard,
+        };
+        loop {
+            match parser.next()? {
+                XmlEvent::EndElement { name } if name.local_name == "Contents" => break,
+
+                XmlEvent::StartElement { name, .. } if name.local_name == "ChecksumAlgorithm" => {
+                    api_object.checksum_algorithm = Some(checksum_algorithm_from_str(parse_xml_string(parser, "ChecksumAlgorithm")?));
+                },
+                XmlEvent::StartElement { name, .. } if name.local_name == "ChecksumType" => {
+                    let checksum_type = match parse_xml_string(parser, "ChecksumType")? {
+                        v if v == "COMPOSITE" => ApiChecksumType::Composite,
+                        v if v == "FULL_OBJECT" => ApiChecksumType::FullObject,
+
+                        _ => {
+                            return Err(anyhow!("Invalid response object, ChecksumType has an invalid type"))
+                        }
+                    };
+                    api_object.checksum_type = Some(checksum_type);
+                },
+                XmlEvent::StartElement { name, .. } if name.local_name == "ETag" => {
+                    api_object.etag = parse_xml_string(parser, "ETag")?;
+                },
+                XmlEvent::StartElement { name, .. } if name.local_name == "Key" => {
+                    api_object.key  = parse_xml_string(parser, "Key")?;
+                },
+                XmlEvent::StartElement { name, .. } if name.local_name == "LastModified" => {
+                    if let XmlEvent::Characters(value) = &parser.next()? {
+                        let datetime =  DateTime::parse_from_rfc3339(&value)?.to_utc();
+                        api_object.last_modified = datetime;
+                    } else {
+                        return Err(anyhow!("Invalid response object, LastModified has no value"))
+                    }
+                },
+                XmlEvent::StartElement { name, .. } if name.local_name == "Size" => {
+                    api_object.size = parse_xml_value::<usize>(parser, "Size")?;
+                },
+                XmlEvent::StartElement { name, .. } if name.local_name == "StorageClass" => {
+                    api_object.storage_class = storage_class_from_str(parse_xml_string(parser, "StorageClass")?);
+                },
+
+                XmlEvent::StartElement { name, .. } if name.local_name == "Owner" => {
+                    api_object.owner = Some(ApiOwner::parse(parser)?);
+                },
+                XmlEvent::StartElement { name, .. } if name.local_name == "RestoreStatus" => {
+                    let mut restore_status = ApiRestoreStatus {
+                        is_restore_in_progress: false,
+                        restore_expiry_date: Utc::now(),
+                    };
+
+                    loop {
+                        match parser.next()? {
+                            XmlEvent::StartElement { name, .. } => {
+                                if name.local_name == "IsRestoreInProgress" {
+                                    restore_status.is_restore_in_progress = parse_xml_bool(parser, "IsRestoreInProgress")?;
+                                } else if name.local_name == "RestoreExpiryDate" {
+                                    let datetime =  DateTime::parse_from_rfc3339(&parse_xml_string(parser, "RestoreExpiryDate")?)?.to_utc();
+                                    restore_status.restore_expiry_date = datetime;
+                                }
+                            },
+                            XmlEvent::EndElement { name } if name.local_name == "Owner" => break, 
+                            _ => {}
+                        }
+                    }
+
+                    api_object.restore_status = Some(restore_status)
+                },
+                
+                _ => {}
+            }
+        }
+
+        Ok(api_object)
+    }
+}
+
 pub struct ApiBucket {
     pub name: String,
     pub creation_date: Option<DateTime<Utc>>,
     pub region: String,
+}
+
+impl ApiBucket {
+    pub fn parse(parser: &mut EventReader<&[u8]>) -> Result<Self> {
+        let mut bucket = Self {
+            name: String::new(),
+            creation_date: None,
+            region: String::new(),
+        };
+        loop {
+            match parser.next()? {
+                XmlEvent::StartElement { name, .. } if name.local_name == "BucketRegion" => {
+                    bucket.region = parse_xml_string(parser, "BucketRegion")?;
+                },
+                XmlEvent::StartElement { name, .. } if name.local_name == "CreationDate" => {
+                    let datetime =  DateTime::parse_from_rfc3339(&parse_xml_string(parser, "CreationDate")?)?.to_utc();
+                    bucket.creation_date = Some(datetime);
+                },
+                XmlEvent::StartElement { name, .. } if name.local_name == "Name" => {
+                    bucket.name = parse_xml_string(parser, "")?;
+                },
+                XmlEvent::EndElement { name } if name.local_name == "Bucket" => break,
+                _ => {},
+            }
+        }
+        Ok(bucket)
+    }
 }
 
 pub struct ApiOwner {
@@ -111,6 +260,33 @@ pub struct ApiOwner {
     pub id: String,
 }
 
+impl ApiOwner {
+    pub fn parse(parser: &mut EventReader<&[u8]>) -> Result<Self> {
+        let mut api_owner = Self {
+            display_name: None,
+            id: String::new(),
+        };
+        loop {
+            match parser.next()? {
+                XmlEvent::StartElement { name, .. } => {
+                    if let XmlEvent::Characters(value) = parser.next()? {
+                        if name.local_name == "DisplayName" {
+                            api_owner.display_name = Some(value);
+                        } else if name.local_name == "ID" {
+                            api_owner.id = value;
+                        }
+                    } else {
+                        return Err(anyhow!("Invalid response object, {name} element has no value"))
+                    }
+                },
+                XmlEvent::EndElement { name } if name.local_name == "Owner" => break, 
+                _ => {}
+            }
+        }
+
+        Ok(api_owner)
+    }
+}
 
 pub trait S3RequestData {
     type ResponseType;

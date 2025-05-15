@@ -4,11 +4,7 @@ use anyhow::{Result, anyhow};
 use xml::reader::{EventReader, XmlEvent};
 
 use super::{
-    ApiBucket, 
-    ApiOwner, 
-    S3RequestBuilder, 
-    S3RequestData, 
-    S3ResponseData
+    parse_xml_string, ApiBucket, ApiOwner, S3RequestBuilder, S3RequestData, S3ResponseData
 };
 
 pub struct ListBucketsRequest {
@@ -111,37 +107,13 @@ impl S3ResponseData for ListBucketsResponse {
                 XmlEvent::EndDocument => break,
                 
                 XmlEvent::StartElement { name, .. } if name.local_name == "Prefix" => {
-                    if let XmlEvent::Characters(value) = parser.next()? {
-                        list_bucket_response.prefix = Some(value);
-                    } else {
-                        return Err(anyhow!("Invalid response object, Prefix has no value"))
-                    }
+                    list_bucket_response.prefix = Some(parse_xml_string(&mut parser, "Prefix")?);
                 },
                 XmlEvent::StartElement { name, .. } if name.local_name == "ContinuationToken" => {
-                    if let XmlEvent::Characters(value) = parser.next()? {
-                        list_bucket_response.continuation_token = Some(value);
-                    } else {
-                        return Err(anyhow!("Invalid response object, ContinuationToken has no value"))
-                    }
+                    list_bucket_response.continuation_token = Some(parse_xml_string(&mut parser, "ContinuationToken")?);
                 },
                 XmlEvent::StartElement { name, .. } if name.local_name == "Owner" => {
-                    loop {
-                        match parser.next()? {
-                            XmlEvent::StartElement { name, .. } => {
-                                if let XmlEvent::Characters(value) = parser.next()? {
-                                    if name.local_name == "DisplayName" {
-                                        list_bucket_response.owner.display_name = Some(value);
-                                    } else if name.local_name == "ID" {
-                                        list_bucket_response.owner.id = value;
-                                    }
-                                } else {
-                                    return Err(anyhow!("Invalid response object, {name} element has no value"))
-                                }
-                            },
-                            XmlEvent::EndElement { name } if name.local_name == "Owner" => break, 
-                            _ => {}
-                        }
-                    }
+                    list_bucket_response.owner = ApiOwner::parse(&mut parser)?;
                 },
                 XmlEvent::StartElement { name, .. } if name.local_name == "Buckets" => {
                     loop {
@@ -149,42 +121,7 @@ impl S3ResponseData for ListBucketsResponse {
                             XmlEvent::EndElement { name } if name.local_name == "Buckets" => break,
 
                             XmlEvent::StartElement { .. } => { // Bucket
-                                let mut bucket = ApiBucket {
-                                    name: String::new(),
-                                    creation_date: None,
-                                    region: String::new(),
-                                };
-                                loop {
-                                    match parser.next()? {
-                                        XmlEvent::StartElement { name, .. } if name.local_name == "BucketRegion" => {
-                                            if let XmlEvent::Characters(value) = parser.next()? {
-                                                bucket.region = value;
-                                            } else {
-                                                return Err(anyhow!("Invalid response object, BucketRegion has no value"))
-                                            }
-                                        },
-                                        XmlEvent::StartElement { name, .. } if name.local_name == "CreationDate" => {
-                                            if let XmlEvent::Characters(value) = &parser.next()? {
-                                                let datetime =  DateTime::parse_from_rfc3339(&value)?.to_utc();
-                                                bucket.creation_date = Some(datetime);
-                                            } else {
-                                                return Err(anyhow!("Invalid response object, CreationDate has no value"))
-                                            }
-                                        },
-                                        XmlEvent::StartElement { name, .. } if name.local_name == "Name" => {
-                                            if let XmlEvent::Characters(value) = parser.next()? {
-                                                bucket.name = value;
-                                            } else {
-                                                return Err(anyhow!("Invalid response object, Name has no value"))
-                                            }
-                                        },
-                                        XmlEvent::EndElement { name } if name.local_name == "Bucket" => {
-                                            list_bucket_response.buckets.push(bucket);
-                                            break
-                                        },
-                                        _ => {},
-                                    }
-                                }
+                                list_bucket_response.buckets.push(ApiBucket::parse(&mut parser)?);
                             },
 
                             _ => {},

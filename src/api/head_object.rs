@@ -39,13 +39,19 @@ impl S3RequestData for HeadObjectRequest {
 
         if let Some(part_number) = self.part_number {
             if part_number >= 1   && part_number <= 10000 {
-                builder.query("partNumber", Some(&part_number.to_string()));
+                builder.query(
+                    "partNumber", 
+                    Some(&part_number.to_string())
+                );
             } else {
-                return Err(anyhow!("part_number has to be constrained to 1 <= part_number <= 10000, part_number is {part_number}"))
+                return Err(anyhow!("part_number has to be constrained to part_number >= 1 and part_number <= 10000, part_number is {part_number}"))
             }
         }
         if let Some(version_id) = &self.version_id {
-            builder.query("VersionId", Some(version_id));
+            builder.query(
+                "VersionId", 
+                Some(version_id)
+            );
         }
 
         Ok(builder)

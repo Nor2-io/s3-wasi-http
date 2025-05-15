@@ -67,7 +67,7 @@ impl S3RequestData for ListBucketsRequest {
                     Some(&max_buckets.to_string())
                 );
             } else {
-                return Err(anyhow!("max_buckets has to be constrained to 1 <= part_number <= 10000, part_number is {max_buckets}"))
+                return Err(anyhow!("max_buckets has to be constrained to part_number >= and part_number <= 10000, part_number is {max_buckets}"))
             }
         }
         if let Some(prefix) = &self.prefix {

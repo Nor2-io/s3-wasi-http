@@ -118,37 +118,27 @@ impl ContentHeaders {
             true => None,
             false => {
                 let mut cc_directives_str = String::new();
-                let mut prefix = "";
-                for cc in &self.cache_control {
-                    let cc_str = match cc {
-                        CacheControl::MaxAge(age) => &format!("max-age={age}"),
-                        CacheControl::SMaxAge(age) => &format!("s-maxage={age}"),
-                        CacheControl::MustRevalidate => "must-revalidate",
-                        CacheControl::ProxyRevalidate => "proxy-revalidate",
-                        CacheControl::Private => "private",
-                        CacheControl::Public => "public",
-                        CacheControl::MustUnderstand => "must-understand",
-                        CacheControl::NoTransform => "no-transform",
-                        CacheControl::Immutable => "immutable",
-                        CacheControl::StaleWhileRevalidate(age) => &format!("stale-while-revalidate={age}"),
-                        CacheControl::StaleIfError(age) => &format!("stale-if-error={age}"),
-                        CacheControl::NoCache => "no-cache",
-                        CacheControl::NoStore => "no-store",
-                        CacheControl::MaxStale(age) => &format!("max-stale={age}"),
-                        CacheControl::MinFresh(age) => &format!("min-fresh={age}"),
-                        CacheControl::OnlyIfCached => "only-if-cached",
-                        CacheControl::Value(str) => str
-                    };
-
-                    cc_directives_str.push_str(prefix);
-                    cc_directives_str.push_str(cc_str);
-
-                    prefix = ", ";
-                }
-
-
-
-                Some(cc_directives_str.to_string())
+                Some(self.cache_control.iter().map(|cc| {
+                    match cc {
+                        CacheControl::MaxAge(age) => format!("max-age={age}"),
+                        CacheControl::SMaxAge(age) => format!("s-maxage={age}"),
+                        CacheControl::MustRevalidate => "must-revalidate".to_string(),
+                        CacheControl::ProxyRevalidate => "proxy-revalidate".to_string(),
+                        CacheControl::Private => "private".to_string(),
+                        CacheControl::Public => "public".to_string(),
+                        CacheControl::MustUnderstand => "must-understand".to_string(),
+                        CacheControl::NoTransform => "no-transform".to_string(),
+                        CacheControl::Immutable => "immutable".to_string(),
+                        CacheControl::StaleWhileRevalidate(age) => format!("stale-while-revalidate={age}"),
+                        CacheControl::StaleIfError(age) => format!("stale-if-error={age}"),
+                        CacheControl::NoCache => "no-cache".to_string(),
+                        CacheControl::NoStore => "no-store".to_string(),
+                        CacheControl::MaxStale(age) => format!("max-stale={age}"),
+                        CacheControl::MinFresh(age) => format!("min-fresh={age}"),
+                        CacheControl::OnlyIfCached => "only-if-cached".to_string(),
+                        CacheControl::Value(str) => str.to_string()
+                    }
+                }).collect::<Vec<String>>().join(", "))
             }
         }
     }

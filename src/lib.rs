@@ -54,7 +54,7 @@ impl S3Client {
     /// {bucket}.s3.{region}.amazonaws.com
     /// 
     /// see [`S3Client::set_endpoint`] to override the endpoint created from
-    /// the region and bucket.
+    /// the region and bucket or [`S3Client::new_client`] to set the endpoint.
     pub fn new(access_key: String, secret_key: String, region: String, bucket: String) -> Self {
         let endpoint = format!("{}.{}.{}.amazonaws.com", bucket, AWS_SERVICE, region);
 
@@ -63,6 +63,21 @@ impl S3Client {
             access_key,
             secret_key,
             region,
+            endpoint
+        }
+    }
+
+    /// Create a new s3 client
+    /// 
+    /// Endpoint is expected to be an s3 compatible bucket endpoint.
+    /// for aws the format is {bucket}.s3.{region}.amazonaws.com, see [`S3Client::new`] 
+    /// for a nicer setup for aws.
+    pub fn new_client(access_key: String, secret_key: String, region: String, endpoint: String) -> Self {
+        Self { 
+            client: Client::new(), 
+            access_key, 
+            secret_key, 
+            region, 
             endpoint
         }
     }

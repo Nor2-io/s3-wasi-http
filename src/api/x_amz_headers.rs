@@ -331,7 +331,7 @@ impl XAmzHeaders {
     fn get_storage_class(&self) -> Option<String> {
         match &self.storage_class {
             Some(class) => {
-                let c =match class {
+                let c = match class {
                     XAmzStorageClass::Standard => "STANDARD",
                     XAmzStorageClass::ReducedRedundancy => "REDUCED_REDUNDANCY",
                     XAmzStorageClass::StandardIA => "STANDARD_IA",
@@ -356,19 +356,9 @@ impl XAmzHeaders {
             return None
         }
 
-
-        let mut tags = String::new();
-        let mut prefix = "";
-        for (k,v) in &self.tagging {
-            tags.push_str(prefix);
-            tags.push_str(k);
-            tags.push('=');
-            tags.push_str(v);
-
-            prefix = "&"
-        }
-
-        Some(tags)
+        Some(self.tagging.iter().map(|(k,v)| {
+            format!("{k}={v}")
+        }).collect::<Vec::<String>>().join("&"))
     }
     
     pub(crate) fn get_headers(&self) -> Vec<(String, String)> {

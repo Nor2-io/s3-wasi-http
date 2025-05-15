@@ -353,18 +353,9 @@ impl<T> S3RequestBuilder<T>
             true => "".to_string(),
             false => {
                 self.query.sort();
-                let mut prefix = "";
-                let mut query_str = String::new();
-                for (key, value) in &self.query {
-                    query_str.push_str(prefix);
-                    query_str.push_str(&key);
-                    query_str.push_str("=");
-                    query_str.push_str(&value);
-
-                    prefix = "&";
-                }
-
-                query_str
+                self.query.iter().map(|(k,v)| {
+                    format!("{k}={v}")
+                }).collect::<Vec<String>>().join("&")
             },
         };
 
@@ -395,18 +386,12 @@ impl<T> S3RequestBuilder<T>
         canonical_headers_vec.push(("x-amz-content-sha256".to_string(), payload_hash.clone()));
         canonical_headers_vec.push(("x-amz-date".to_string(), amz_date.clone()));
         canonical_headers_vec.sort();
-        let mut canonical_headers = String::new();
-        let mut signed_headers = String::new();
-        let mut signed_headers_prefix = "";
-        for (key, value) in canonical_headers_vec {
-            canonical_headers.push_str(&key);
-            signed_headers.push_str(signed_headers_prefix);
-            signed_headers.push_str(&key);
-            signed_headers_prefix = ";";
-            canonical_headers.push(':');
-            canonical_headers.push_str(&value);
-            canonical_headers.push_str("\n");
-        }
+        let canonical_headers = canonical_headers_vec.iter().map(|(k,v)| {
+            format!("{k}: {v}")
+        }).collect::<Vec<String>>().join("\n");
+        let signed_headers = canonical_headers_vec.iter().map(|(k, _)| {
+            k.to_owned()
+        }).collect::<Vec<String>>().join(";");
 
         let method = self.method.as_str();
         let canonical_request =

@@ -391,9 +391,9 @@ impl<T> S3RequestBuilder<T>
                 self.x_amz_headers.clone()
             },
         };
-        canonical_headers_vec.push((String::from("host"), String::from(host)));
-        canonical_headers_vec.push((String::from("x-amz-content-sha256"), payload_hash.clone()));
-        canonical_headers_vec.push((String::from("x-amz-date"), amz_date.clone()));
+        canonical_headers_vec.push(("host".to_string(), host.to_string()));
+        canonical_headers_vec.push(("x-amz-content-sha256".to_string(), payload_hash.clone()));
+        canonical_headers_vec.push(("x-amz-date".to_string(), amz_date.clone()));
         canonical_headers_vec.sort();
         let mut canonical_headers = String::new();
         let mut signed_headers = String::new();

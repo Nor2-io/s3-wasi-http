@@ -46,25 +46,25 @@ impl ConditionalHeaders {
         let mut headers = Vec::new();
         if let Some(value) = &self.if_match {
             headers.push((
-                String::from("If-Match"),
+                "If-Match".to_string(),
                 value.to_owned()
             ));
         }
         if let Some(datetime) = &self.if_modified_since {
             headers.push((
-                String::from("If-Modified-Since"),
+                "If-Modified-Since".to_string(),
                 datetime.format("%A, %d %b %Y %H:%M:%S GMT").to_string()
             ));
         }
         if let Some(value) = &self.if_none_match {
             headers.push((
-                String::from("If-None-Match"),
+                "If-None-Match".to_string(),
                 value.to_owned()
             ));
         }
         if let Some(datetime) = &self.if_unmodified_since {
             headers.push((
-                String::from("If-Unmodified-Since"),
+                "If-Unmodified-Since".to_string(),
                 datetime.format("%A, %d %b %Y %H:%M:%S GMT").to_string()
             ));
         }

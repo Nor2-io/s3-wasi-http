@@ -273,19 +273,19 @@ impl XAmzHeaders {
             Some(checksum) => {
                 let (key, check) = match checksum {
                     XAmzChecksum::CRC32(sum) => {
-                        (String::from("crc32"), sum)
+                        ("crc32".to_string(), sum)
                     },
                     XAmzChecksum::CRC32C(sum) => {
-                        (String::from("crc32c"), sum)
+                        ("crc32c".to_string(), sum)
                     },
                     XAmzChecksum::CRC64NVME(sum) => {
-                        (String::from("crc64nvme"), sum)
+                        ("crc64nvme".to_string(), sum)
                     },
                     XAmzChecksum::SHA1(sum) => {
-                        (String::from("sha1"), sum)
+                        ("sha1".to_string(), sum)
                     },
                     XAmzChecksum::Sha256(sum) => {
-                        (String::from("sha256"), sum)
+                        ("sha256".to_string(), sum)
                     },
                     XAmzChecksum::Checksum(k, sum) => (k.to_owned(), sum),
                 };
@@ -301,25 +301,25 @@ impl XAmzHeaders {
             match grant {
                 XAmzGrants::FullControl => {
                     headers.push((
-                        String::from("x-amz-grant-full-control"), 
+                        "x-amz-grant-full-control".to_string(), 
                         String::new()
                     ));
                 },
                 XAmzGrants::Read => {
                     headers.push((
-                        String::from("x-amz-grant-read"), 
+                        "x-amz-grant-read".to_string(), 
                         String::new()
                     ));
                 },
                 XAmzGrants::ReadACP => {
                     headers.push((
-                        String::from("x-amz-grant-read-acp"), 
+                        "x-amz-grant-read-acp".to_string(), 
                         String::new()
                     ));
                 },
                 XAmzGrants::WriteACP => {
                     headers.push((
-                        String::from("x-amz-grant-write-acp"), 
+                        "x-amz-grant-write-acp".to_string(), 
                         String::new()
                     ));
                 },
@@ -375,67 +375,67 @@ impl XAmzHeaders {
         let mut headers = Vec::new();
         if self.checksum_mode {
             headers.push((
-                String::from("x-amz-checksum-mode"), 
-                String::from("ENABLED")));
+                "x-amz-checksum-mode".to_string(), 
+                "ENABLED".to_string()));
         }
         if let Some(owner) = &self.expected_bucket_owner {
             headers.push((
-                String::from("x-amz-expected-bucket-owner"), 
+                "x-amz-expected-bucket-owner".to_string(), 
                 owner.to_owned()
             ));
         }
         if self.request_payer {
             headers.push((
-                String::from("x-amz-request-payer"), 
-                String::from("requester")));
+                "x-amz-request-payer".to_string(), 
+                "requester".to_string()));
         }
 
         if let Some(algorithm) = &self.encryption_customer_algorithm {
             headers.push((
-                String::from("x-amz-server-side-encryption-customer-algorithm"), 
+                "x-amz-server-side-encryption-customer-algorithm".to_string(), 
                 algorithm.to_owned()
             ));
         }
         if let Some(key) = &self.encryption_customer_key {
             headers.push((
-                String::from("x-amz-server-side-encryption-customer-key"), 
+                "x-amz-server-side-encryption-customer-key".to_string(), 
                 key.to_owned()
             ));
         }
         if let Some(md5) = &self.encryption_customer_key_md5 {
             headers.push((
-                String::from("x-amz-server-side-encryption-customer-key-MD5"), 
+                "x-amz-server-side-encryption-customer-key-MD5".to_string(), 
                 md5.to_owned()
             ));
         }
         if let Some(algorithm) = self.get_encryption_algorithm() {
             headers.push((
-                String::from("x-amz-server-side-encryption"),
+                "x-amz-server-side-encryption".to_string(),
                 algorithm
             ));
         }
         if let Some(key) = &self.encryption_kms_key_id {
             headers.push((
-                String::from("x-amz-server-side-encryption-aws-kms-key-id"),
+                "x-amz-server-side-encryption-aws-kms-key-id".to_string(),
                 key.to_owned()
             ));
         }
         if self.encryption_bucket_key {
             headers.push((
-                String::from("x-amz-server-side-encryption-bucket-key-enabled"),
-                String::from("true")
+                "x-amz-server-side-encryption-bucket-key-enabled".to_string(),
+                "true".to_string()
             ));
         }
         if let Some(context) = &self.encryption_context {
             headers.push((
-                String::from("x-amz-server-side-encryption-context"),
+                "x-amz-server-side-encryption-context".to_string(),
                 context.to_owned()
             ));
         }
 
         if let Some(acl) = self.get_canned_acl() {
             headers.push((
-                String::from("x-amz-acl"),
+                "x-amz-acl".to_string(),
                 acl
             ));
         }
@@ -454,26 +454,26 @@ impl XAmzHeaders {
         }
         if let Some(class) = self.get_storage_class() {
             headers.push((
-                String::from("x-amz-storage-class"),
+                "x-amz-storage-class".to_string(),
                 class
             ));
         }
         
         if let Some(tagging) = self.get_tagging() {
             headers.push((
-                String::from("x-amz-tagging"),
+                "x-amz-tagging".to_string(),
                 tagging
             ));
         }
         if let Some(redirect) = &self.website_redirect_location {
             headers.push((
-                String::from("x-amz-website-redirect-location"),
+                "x-amz-website-redirect-location".to_string(),
                 redirect.to_owned()
             ));
         }
         if let Some(offset) = self.write_offset {
             headers.push((
-                String::from("x-amz-write-offset-bytes"),
+                "x-amz-write-offset-bytes".to_string(),
                 offset.to_string()
             ));
         }

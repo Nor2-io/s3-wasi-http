@@ -130,7 +130,7 @@ impl S3Client {
     /// let client = S3Client::new_from_env();
     /// 
     /// let request = client.new_request_builder(GetObjectRequest {
-    ///     key: String::from("myobject"),
+    ///     key: "myobject".to_string(),
     ///     part_number: None,
     ///     version_id: None,
     /// })?
@@ -299,7 +299,7 @@ impl S3Client {
     /// file.read_to_end(&mut contents);
     /// 
     /// let resp = self.list_buckets(PutObjectRequest {
-    ///     key: String::from("myobject"),
+    ///     key: "myobject".to_string(),
     ///     body: contents
     /// })?;
     /// assert_eq(resp.status(), StatusCode::OK);

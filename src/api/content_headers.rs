@@ -148,7 +148,7 @@ impl ContentHeaders {
 
 
 
-                Some(String::from(cc_directives_str))
+                Some(cc_directives_str.to_string())
             }
         }
     }
@@ -165,7 +165,7 @@ impl ContentHeaders {
                     ContentDisposition::Value(str) => str,
                 };
 
-                Some(String::from(disp))
+                Some(disp.to_string())
             },
             None => None,
         }
@@ -185,7 +185,7 @@ impl ContentHeaders {
                     ContentEncoding::Encoding(enc) => enc,
                 };
 
-                Some(String::from(e))
+                Some(e.to_string())
             },
             None => None,
         }
@@ -199,7 +199,7 @@ impl ContentHeaders {
                     None => String::new(),
                 };
 
-                Some((String::from("Range"), format!("bytes={start}-{end_str}")))
+                Some(("Range".to_string(), format!("bytes={start}-{end_str}")))
             },
             None => None,
         }
@@ -209,48 +209,48 @@ impl ContentHeaders {
         let mut headers = Vec::new();
         if let Some(control) = &self.get_cache_control_str() {
             headers.push((
-                String::from("Cache-Control"), 
+                "Cache-Control".to_string(), 
                 control.to_owned()
             ));
         }
 
         if let Some(disposition) = &self.get_content_disposition_str() {
             headers.push((
-                String::from("Content-Disposition"), 
+                "Content-Disposition".to_string(), 
                 disposition.to_owned()));
         }
 
         if let Some(encoding) = &self.get_content_encoding_str() {
             headers.push((
-                String::from("Content-Encoding"), 
+                "Content-Encoding".to_string(), 
                 encoding.to_owned()
             ));
         }
 
         if let Some(language) = &self.content_language {
             headers.push((
-                String::from("Content-Language"), 
+                "Content-Language".to_string(), 
                 language.to_owned()
             ));
         }
 
         if let Some(content_type) = &self.content_type {
             headers.push((
-                String::from("Content-Type"), 
+                "Content-Type".to_string(), 
                 content_type.to_owned()
             ));
         }
 
         if let Some(expires) = &self.expires {
             headers.push((
-                String::from("Expires"), 
+                "Expires".to_string(), 
                 expires.format("%A, %d %b %Y %H:%M:%S GMT").to_string()
             ));
         }
 
         if let Some(checksum,) = &self.content_md5 {
             headers.push((
-                String::from("Content-MD5"), 
+                "Content-MD5".to_string(), 
                 checksum.to_owned()
             ));
         }
@@ -269,42 +269,42 @@ impl ContentHeaders {
         let mut query = Vec::new();
         if let Some(control) = self.get_cache_control_str() {
             query.push((
-                String::from("response-cache-control"),
+                "response-cache-control".to_string(),
                 control
             ));
         }
 
         if let Some(disposition) = self.get_content_disposition_str() {
             query.push((
-                String::from("response-content-disposition"),
+                "response-content-disposition".to_string(),
                 disposition
             ));
         }
 
         if let Some(encoding) = self.get_content_encoding_str() {
             query.push((
-                String::from("response-content-encoding"),
+                "response-content-encoding".to_string(),
                 encoding
             ));
         }
 
         if let Some(lang) = &self.content_language {
             query.push((
-                String::from("response-content-language"),
+                "response-content-language".to_string(),
                 lang.to_owned()
             ));
         }
 
         if let Some(content_type) = &self.content_type {
             query.push((
-                String::from("response-content-type"),
+                "response-content-type".to_string(),
                 content_type.to_owned()
             ));
         }
 
         if let Some(expires) = self.expires {
             query.push((
-                String::from("response-expires"),
+                "response-expires".to_string(),
                 expires.format("%A, %d %b %Y %H:%M:%S GMT").to_string()
             ));
         }

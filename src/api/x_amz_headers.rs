@@ -410,6 +410,22 @@ impl XAmzHeadersBuilder {
             ));
         }
 
+        if self.object_lock_legal_hold {}
+        if let Some(object_lock_mode) = &self.object_lock_mode {
+            let lock_mode = match object_lock_mode {
+                XAmzObjectLockMode::Governance => "Governance",
+                XAmzObjectLockMode::Compliance => "Compliance",
+            };
+
+            headers.push(("x-amz-object-lock-mode".to_string(), lock_mode.to_string()));
+        }
+        if let Some(object_retain_until) = self.object_lock_retain_until {
+            headers.push((
+                "x-amz-object-lock-retain-until-date".to_string(),
+                object_retain_until.to_string(),
+            ));
+        }
+
         if let Some(acl) = self.get_canned_acl() {
             headers.push(("x-amz-acl".to_string(), acl));
         }

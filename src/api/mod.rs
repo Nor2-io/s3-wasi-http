@@ -435,7 +435,7 @@ where
     /// Create a new S3RequestBuilder
     ///
     /// See [crate::S3Client::new_request_builder]
-    pub(crate) fn new(
+    pub fn new(
         method: Method,
         action: &str,
         access_key: &str,
@@ -459,11 +459,11 @@ where
         }
     }
 
-    pub(crate) fn method(&mut self, method: Method) -> &mut Self {
+    pub fn method(&mut self, method: Method) -> &mut Self {
         self.method = method;
         self
     }
-    pub(crate) fn action(&mut self, action: &str) -> &mut Self {
+    pub fn action(&mut self, action: &str) -> &mut Self {
         self.action = percent_encode_path(action);
         self
     }

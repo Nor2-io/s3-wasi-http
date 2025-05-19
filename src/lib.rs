@@ -11,7 +11,6 @@ use api::{
 };
 use wstd::http::Client;
 
-#[allow(unused)]
 pub mod api;
 
 const AWS_SERVICE: &str = "s3";
@@ -50,7 +49,7 @@ impl S3Client {
     ///
     /// Endpoint is expected to be an s3 compatible bucket endpoint.
     /// for aws the format is {bucket}.s3.{region}.amazonaws.com, see [`S3Client::new`]
-    /// for a nicer setup for aws.
+    /// for a nicer setup for aws.r
     pub fn new_client(
         access_key: String,
         secret_key: String,

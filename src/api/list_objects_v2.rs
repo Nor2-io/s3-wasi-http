@@ -1,7 +1,6 @@
 use std::i32;
 
 use anyhow::{anyhow, Result};
-use chrono::{DateTime, Utc};
 use wstd::{
     http::{body::IncomingBody, Method},
     io::AsyncRead,
@@ -9,9 +8,7 @@ use wstd::{
 use xml::{reader::XmlEvent, EventReader};
 
 use super::{
-    checksum_algorithm_from_str, parse_xml_bool, parse_xml_string, parse_xml_value,
-    x_amz_headers::{storage_class_from_str, XAmzStorageClass},
-    ApiChecksumType, ApiObject, ApiOwner, ApiRestoreStatus, S3RequestBuilder, S3RequestData,
+    parse_xml_bool, parse_xml_string, parse_xml_value, ApiObject, S3RequestBuilder, S3RequestData,
     S3ResponseData,
 };
 

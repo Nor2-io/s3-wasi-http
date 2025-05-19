@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 
 /// Set conditional headers on a request
-/// 
+///
 /// see [super::S3RequestBuilder::set_conditional_headers]
 pub struct ConditionalHeaders {
     if_match: Option<String>,
@@ -12,11 +12,11 @@ pub struct ConditionalHeaders {
 
 impl Default for ConditionalHeaders {
     fn default() -> Self {
-        Self { 
-            if_match: None, 
-            if_modified_since: None, 
-            if_none_match: None, 
-            if_unmodified_since: None
+        Self {
+            if_match: None,
+            if_modified_since: None,
+            if_none_match: None,
+            if_unmodified_since: None,
         }
     }
 }
@@ -45,30 +45,23 @@ impl ConditionalHeaders {
     pub(crate) fn get_headers(&self) -> Vec<(String, String)> {
         let mut headers = Vec::new();
         if let Some(value) = &self.if_match {
-            headers.push((
-                "If-Match".to_string(),
-                value.to_owned()
-            ));
+            headers.push(("If-Match".to_string(), value.to_owned()));
         }
         if let Some(datetime) = &self.if_modified_since {
             headers.push((
                 "If-Modified-Since".to_string(),
-                datetime.format("%A, %d %b %Y %H:%M:%S GMT").to_string()
+                datetime.format("%A, %d %b %Y %H:%M:%S GMT").to_string(),
             ));
         }
         if let Some(value) = &self.if_none_match {
-            headers.push((
-                "If-None-Match".to_string(),
-                value.to_owned()
-            ));
+            headers.push(("If-None-Match".to_string(), value.to_owned()));
         }
         if let Some(datetime) = &self.if_unmodified_since {
             headers.push((
                 "If-Unmodified-Since".to_string(),
-                datetime.format("%A, %d %b %Y %H:%M:%S GMT").to_string()
+                datetime.format("%A, %d %b %Y %H:%M:%S GMT").to_string(),
             ));
         }
-
 
         headers
     }

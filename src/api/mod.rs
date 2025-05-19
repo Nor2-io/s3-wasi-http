@@ -4,13 +4,16 @@ use conditional_headers::ConditionalHeaders;
 use content_headers::ContentHeaders;
 use x_amz_headers::{storage_class_from_str, XAmzHeaders, XAmzStorageClass};
 
-use http::{response::Parts, StatusCode};
-use percent_encoding::{AsciiSet, CONTROLS};
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, Utc};
 use hmac::{Hmac, Mac};
+use http::{response::Parts, StatusCode};
+use percent_encoding::{AsciiSet, CONTROLS};
 use sha2::{Digest, Sha256};
-use wstd::http::{body::{BoundedBody, IncomingBody}, HeaderName, HeaderValue, IntoBody, Method, Request, Response, Scheme, Uri};
+use wstd::http::{
+    body::{BoundedBody, IncomingBody},
+    HeaderName, HeaderValue, IntoBody, Method, Request, Response, Scheme, Uri,
+};
 use xml::{reader::XmlEvent, EventReader};
 
 use crate::AWS_SERVICE;
@@ -21,13 +24,13 @@ pub mod list_buckets;
 pub mod list_objects_v2;
 pub mod put_object;
 
-pub mod content_headers;
 pub mod conditional_headers;
+pub mod content_headers;
 pub mod x_amz_headers;
 
 const AWS_SERVICE_EMPTY_PAYLOAD: &[u8] = "UNSIGNED-PAYLOAD".as_bytes();
 const AWS_SIGN_ALGORITHM: &str = "AWS4-HMAC-SHA256";
-const QUERY_SET: &AsciiSet = &CONTROLS    
+const QUERY_SET: &AsciiSet = &CONTROLS
     .add(b' ')
     .add(b'/')
     .add(b':') // Required to be percent encoded to function with aws services
@@ -74,8 +77,8 @@ pub(crate) fn checksum_algorithm_from_str(algo: String) -> ChecksumAlgorithm {
         a if a == "sha1" => ChecksumAlgorithm::SHA1,
         a if a == "sha256" => ChecksumAlgorithm::SHA256,
         a if a == "crc64nvme" => ChecksumAlgorithm::CRC64NVME,
-        
-        a => ChecksumAlgorithm::Alogrithm(a)
+
+        a => ChecksumAlgorithm::Alogrithm(a),
     }
 }
 
@@ -83,7 +86,7 @@ pub(crate) fn parse_xml_string(parser: &mut EventReader<&[u8]>, field: &str) -> 
     if let XmlEvent::Characters(value) = parser.next()? {
         Ok(value)
     } else {
-        return Err(anyhow!("Invalid response object, {field} has no value"))
+        return Err(anyhow!("Invalid response object, {field} has no value"));
     }
 }
 
@@ -93,23 +96,31 @@ pub(crate) fn parse_xml_bool(parser: &mut EventReader<&[u8]>, field: &str) -> Re
             v if v == "true" => Ok(true),
             v if v == "false" => Ok(false),
             _ => {
-                return Err(anyhow!("Invalid response object, {field} is not a boolean, value: {value}"))
+                return Err(anyhow!(
+                    "Invalid response object, {field} is not a boolean, value: {value}"
+                ))
             }
         }
     } else {
-        return Err(anyhow!("Invalid response object, {field} element has no value"))
+        return Err(anyhow!(
+            "Invalid response object, {field} element has no value"
+        ));
     }
 }
 
-pub(crate) fn parse_xml_value<T>(parser: &mut EventReader<&[u8]>, field: &str) -> Result<T> 
-    where T: FromStr {
+pub(crate) fn parse_xml_value<T>(parser: &mut EventReader<&[u8]>, field: &str) -> Result<T>
+where
+    T: FromStr,
+{
     if let XmlEvent::Characters(value) = parser.next()? {
         match value.parse::<T>() {
             Ok(v) => Ok(v),
-            Err(_) => Err(anyhow!("Unable to parse value for field {field}, value {value}")),
+            Err(_) => Err(anyhow!(
+                "Unable to parse value for field {field}, value {value}"
+            )),
         }
     } else {
-        return Err(anyhow!("Invalid response object, {field} has no value"))
+        return Err(anyhow!("Invalid response object, {field} has no value"));
     }
 }
 
@@ -153,43 +164,50 @@ impl ApiObject {
                 XmlEvent::EndElement { name } if name.local_name == "Contents" => break,
 
                 XmlEvent::StartElement { name, .. } if name.local_name == "ChecksumAlgorithm" => {
-                    api_object.checksum_algorithm = Some(checksum_algorithm_from_str(parse_xml_string(parser, "ChecksumAlgorithm")?));
-                },
+                    api_object.checksum_algorithm = Some(checksum_algorithm_from_str(
+                        parse_xml_string(parser, "ChecksumAlgorithm")?,
+                    ));
+                }
                 XmlEvent::StartElement { name, .. } if name.local_name == "ChecksumType" => {
                     let checksum_type = match parse_xml_string(parser, "ChecksumType")? {
                         v if v == "COMPOSITE" => ApiChecksumType::Composite,
                         v if v == "FULL_OBJECT" => ApiChecksumType::FullObject,
 
                         _ => {
-                            return Err(anyhow!("Invalid response object, ChecksumType has an invalid type"))
+                            return Err(anyhow!(
+                                "Invalid response object, ChecksumType has an invalid type"
+                            ))
                         }
                     };
                     api_object.checksum_type = Some(checksum_type);
-                },
+                }
                 XmlEvent::StartElement { name, .. } if name.local_name == "ETag" => {
                     api_object.etag = parse_xml_string(parser, "ETag")?;
-                },
+                }
                 XmlEvent::StartElement { name, .. } if name.local_name == "Key" => {
-                    api_object.key  = parse_xml_string(parser, "Key")?;
-                },
+                    api_object.key = parse_xml_string(parser, "Key")?;
+                }
                 XmlEvent::StartElement { name, .. } if name.local_name == "LastModified" => {
                     if let XmlEvent::Characters(value) = &parser.next()? {
-                        let datetime =  DateTime::parse_from_rfc3339(&value)?.to_utc();
+                        let datetime = DateTime::parse_from_rfc3339(&value)?.to_utc();
                         api_object.last_modified = datetime;
                     } else {
-                        return Err(anyhow!("Invalid response object, LastModified has no value"))
+                        return Err(anyhow!(
+                            "Invalid response object, LastModified has no value"
+                        ));
                     }
-                },
+                }
                 XmlEvent::StartElement { name, .. } if name.local_name == "Size" => {
                     api_object.size = parse_xml_value::<usize>(parser, "Size")?;
-                },
+                }
                 XmlEvent::StartElement { name, .. } if name.local_name == "StorageClass" => {
-                    api_object.storage_class = storage_class_from_str(parse_xml_string(parser, "StorageClass")?);
-                },
+                    api_object.storage_class =
+                        storage_class_from_str(parse_xml_string(parser, "StorageClass")?);
+                }
 
                 XmlEvent::StartElement { name, .. } if name.local_name == "Owner" => {
                     api_object.owner = Some(ApiOwner::parse(parser)?);
-                },
+                }
                 XmlEvent::StartElement { name, .. } if name.local_name == "RestoreStatus" => {
                     let mut restore_status = ApiRestoreStatus {
                         is_restore_in_progress: false,
@@ -200,20 +218,24 @@ impl ApiObject {
                         match parser.next()? {
                             XmlEvent::StartElement { name, .. } => {
                                 if name.local_name == "IsRestoreInProgress" {
-                                    restore_status.is_restore_in_progress = parse_xml_bool(parser, "IsRestoreInProgress")?;
+                                    restore_status.is_restore_in_progress =
+                                        parse_xml_bool(parser, "IsRestoreInProgress")?;
                                 } else if name.local_name == "RestoreExpiryDate" {
-                                    let datetime =  DateTime::parse_from_rfc3339(&parse_xml_string(parser, "RestoreExpiryDate")?)?.to_utc();
+                                    let datetime = DateTime::parse_from_rfc3339(
+                                        &parse_xml_string(parser, "RestoreExpiryDate")?,
+                                    )?
+                                    .to_utc();
                                     restore_status.restore_expiry_date = datetime;
                                 }
-                            },
-                            XmlEvent::EndElement { name } if name.local_name == "Owner" => break, 
+                            }
+                            XmlEvent::EndElement { name } if name.local_name == "Owner" => break,
                             _ => {}
                         }
                     }
 
                     api_object.restore_status = Some(restore_status)
-                },
-                
+                }
+
                 _ => {}
             }
         }
@@ -239,16 +261,18 @@ impl ApiBucket {
             match parser.next()? {
                 XmlEvent::StartElement { name, .. } if name.local_name == "BucketRegion" => {
                     bucket.region = parse_xml_string(parser, "BucketRegion")?;
-                },
+                }
                 XmlEvent::StartElement { name, .. } if name.local_name == "CreationDate" => {
-                    let datetime =  DateTime::parse_from_rfc3339(&parse_xml_string(parser, "CreationDate")?)?.to_utc();
+                    let datetime =
+                        DateTime::parse_from_rfc3339(&parse_xml_string(parser, "CreationDate")?)?
+                            .to_utc();
                     bucket.creation_date = Some(datetime);
-                },
+                }
                 XmlEvent::StartElement { name, .. } if name.local_name == "Name" => {
                     bucket.name = parse_xml_string(parser, "")?;
-                },
+                }
                 XmlEvent::EndElement { name } if name.local_name == "Bucket" => break,
-                _ => {},
+                _ => {}
             }
         }
         Ok(bucket)
@@ -276,10 +300,12 @@ impl ApiOwner {
                             api_owner.id = value;
                         }
                     } else {
-                        return Err(anyhow!("Invalid response object, {name} element has no value"))
+                        return Err(anyhow!(
+                            "Invalid response object, {name} element has no value"
+                        ));
                     }
-                },
-                XmlEvent::EndElement { name } if name.local_name == "Owner" => break, 
+                }
+                XmlEvent::EndElement { name } if name.local_name == "Owner" => break,
                 _ => {}
             }
         }
@@ -292,39 +318,45 @@ pub trait S3RequestData {
     type ResponseType;
     /// Creates an S3RequestBuilder from the S3RequestData object
     fn into_builder(
-        &self, 
-        access_key: &str, 
-        secret_key: &str, 
-        region: &str, 
-        endpoint: &str) 
-        -> Result<S3RequestBuilder<Self::ResponseType>> 
-            where <Self as S3RequestData>::ResponseType: S3ResponseData;
+        &self,
+        access_key: &str,
+        secret_key: &str,
+        region: &str,
+        endpoint: &str,
+    ) -> Result<S3RequestBuilder<Self::ResponseType>>
+    where
+        <Self as S3RequestData>::ResponseType: S3ResponseData;
 }
 
 pub struct S3Request<T>
-    where T: S3ResponseData {
+where
+    T: S3ResponseData,
+{
     pub request: Request<BoundedBody<Vec<u8>>>,
     phantom: PhantomData<T>,
 }
 
 pub trait S3ResponseData {
     /// Parse the response body into a S3ResponseData struct
-    #[allow(async_fn_in_trait)] 
-    async fn parse_body(
-        response: &mut IncomingBody) 
-        -> Result<Self> where Self: Sized;
+    #[allow(async_fn_in_trait)]
+    async fn parse_body(response: &mut IncomingBody) -> Result<Self>
+    where
+        Self: Sized;
 }
 
-
 pub struct S3Response<T>
-    where T: S3ResponseData {
+where
+    T: S3ResponseData,
+{
     head: Parts,
     body: IncomingBody,
     phantom: PhantomData<T>,
 }
 
-impl<T> S3Response<T> 
-    where T: S3ResponseData {
+impl<T> S3Response<T>
+where
+    T: S3ResponseData,
+{
     pub fn from_response(response: Response<IncomingBody>) -> Result<Self> {
         let (head, body) = response.into_parts();
         Ok(Self {
@@ -353,8 +385,6 @@ impl<T> S3Response<T>
         Ok((self.head.clone(), body))
     }
 }
-
-
 
 fn get_signature_key(secret_key: &str, date: &str, region: &str, service: &str) -> Result<Vec<u8>> {
     let k_secret = format!("AWS4{}", secret_key);
@@ -399,26 +429,29 @@ pub struct S3RequestBuilder<T: S3ResponseData> {
 }
 
 impl<T> S3RequestBuilder<T>
-    where T: S3ResponseData {
+where
+    T: S3ResponseData,
+{
     /// Create a new S3RequestBuilder
-    /// 
+    ///
     /// See [crate::S3Client::new_request_builder]
     pub(crate) fn new(
         method: Method,
         action: &str,
-        access_key: &str, 
-        secret_key: &str, 
-        region: &str, 
-        endpoint: &str) -> Self {
-        Self { 
-            method, 
-            action: action.to_owned(), 
-            query: Vec::new(), 
+        access_key: &str,
+        secret_key: &str,
+        region: &str,
+        endpoint: &str,
+    ) -> Self {
+        Self {
+            method,
+            action: action.to_owned(),
+            query: Vec::new(),
             headers: Vec::new(),
             x_amz_headers: Vec::new(),
-            access_key: access_key.to_owned(), 
-            secret_key: secret_key.to_owned(), 
-            region: region.to_owned(), 
+            access_key: access_key.to_owned(),
+            secret_key: secret_key.to_owned(),
+            region: region.to_owned(),
             endpoint: endpoint.to_owned(),
             scheme: Scheme::HTTPS,
             body: None,
@@ -463,8 +496,10 @@ impl<T> S3RequestBuilder<T>
         self
     }
     /// Set the request body
-    pub fn body<B>(&mut self, body: B) -> &mut Self 
-        where B: AsRef<[u8]> {
+    pub fn body<B>(&mut self, body: B) -> &mut Self
+    where
+        B: AsRef<[u8]>,
+    {
         let b = body.as_ref().to_vec();
         self.body = Some(b);
         self
@@ -476,7 +511,7 @@ impl<T> S3RequestBuilder<T>
     }
 
     /// Set the request content headers
-    /// 
+    ///
     /// see [ContentHeaders]
     /// [S3RequestBuilder::headers] can be easier if adding a small amount of headers
     pub fn set_content_headers(&mut self, content: &ContentHeaders) -> &mut Self {
@@ -484,9 +519,9 @@ impl<T> S3RequestBuilder<T>
         self.headers.append(&mut content_headers);
         self
     }
-    /// Set the request content query string will 
+    /// Set the request content query string will
     /// also set the range header if set
-    /// 
+    ///
     /// see [ContentHeaders]
     /// [S3RequestBuilder::query] can be easier if adding a small amount of queries
     pub fn set_content_query(&mut self, content: &ContentHeaders) -> &mut Self {
@@ -497,7 +532,7 @@ impl<T> S3RequestBuilder<T>
         self
     }
     /// Set the request conditional headers
-    /// 
+    ///
     /// see [ConditionalHeaders]
     /// [S3RequestBuilder::headers] can be easier if adding a small amount of headers
     pub fn set_conditional_headers(&mut self, conds: &ConditionalHeaders) -> &mut Self {
@@ -506,24 +541,29 @@ impl<T> S3RequestBuilder<T>
         self
     }
     /// Set the request x-amz headers
-    /// 
+    ///
     /// See [XAmzHeaders] and [x_amz_headers::XAmzHeadersBuilder]
     /// [S3RequestBuilder::headers] can be easier if adding a small amount of headers
-    pub fn set_x_amz_headers(&mut self, xamz: &XAmzHeaders)  -> &mut Self {
+    pub fn set_x_amz_headers(&mut self, xamz: &XAmzHeaders) -> &mut Self {
         let mut xamz_headers = xamz.headers();
         self.x_amz_headers.append(&mut xamz_headers);
         self
     }
 
     /// Set authentication values
-    pub fn set_auth(&mut self, access_key: &str, secret_key: &str, region: &str, endpoint: &str) -> &mut Self {
+    pub fn set_auth(
+        &mut self,
+        access_key: &str,
+        secret_key: &str,
+        region: &str,
+        endpoint: &str,
+    ) -> &mut Self {
         self.access_key = access_key.to_owned();
         self.secret_key = secret_key.to_owned();
         self.region = region.to_owned();
         self.endpoint = endpoint.to_owned();
         self
     }
-
 
     /// Build and sign the request
     pub fn build(&mut self) -> Result<S3Request<T>> {
@@ -537,10 +577,12 @@ impl<T> S3RequestBuilder<T>
             true => "".to_string(),
             false => {
                 self.query.sort();
-                self.query.iter().map(|(k,v)| {
-                    format!("{k}={v}")
-                }).collect::<Vec<String>>().join("&")
-            },
+                self.query
+                    .iter()
+                    .map(|(k, v)| format!("{k}={v}"))
+                    .collect::<Vec<String>>()
+                    .join("&")
+            }
         };
 
         // SHA-256 hash of the payload
@@ -556,39 +598,44 @@ impl<T> S3RequestBuilder<T>
             (Some(scheme), Some(host)) => (scheme, host),
             (_, None) => {
                 return Err(anyhow!("No host defined"));
-            },
+            }
         };
 
         // Canonical Request
         let mut canonical_headers_vec = match self.x_amz_headers.is_empty() {
             true => Vec::new(),
-            false => {
-                self.x_amz_headers.clone()
-            },
+            false => self.x_amz_headers.clone(),
         };
         canonical_headers_vec.push(("host".to_string(), host.to_string()));
         canonical_headers_vec.push(("x-amz-content-sha256".to_string(), payload_hash.clone()));
         canonical_headers_vec.push(("x-amz-date".to_string(), amz_date.clone()));
         canonical_headers_vec.sort();
-        let canonical_headers = canonical_headers_vec.iter().map(|(k,v)| {
-            format!("{k}: {v}")
-        }).collect::<Vec<String>>().join("\n");
-        let signed_headers = canonical_headers_vec.iter().map(|(k, _)| {
-            k.to_owned()
-        }).collect::<Vec<String>>().join(";");
+        let canonical_headers = canonical_headers_vec
+            .iter()
+            .map(|(k, v)| format!("{k}: {v}"))
+            .collect::<Vec<String>>()
+            .join("\n");
+        let signed_headers = canonical_headers_vec
+            .iter()
+            .map(|(k, _)| k.to_owned())
+            .collect::<Vec<String>>()
+            .join(";");
 
         let method = self.method.as_str();
-        let canonical_request =
-        format!("{method}\n/{action}\n{query}\n{canonical_headers}\n{signed_headers}\n{payload_hash}", 
-                action = self.action);
+        let canonical_request = format!(
+            "{method}\n/{action}\n{query}\n{canonical_headers}\n{signed_headers}\n{payload_hash}",
+            action = self.action
+        );
         let canonical_request_hash = hex::encode(Sha256::digest(canonical_request.as_bytes()));
 
         // String-to-Sign
         let credential_scope = format!("{date_stamp}/{}/{AWS_SERVICE}/aws4_request", self.region);
-        let string_to_sign =
-            format!("{AWS_SIGN_ALGORITHM}\n{amz_date}\n{credential_scope}\n{canonical_request_hash}");
+        let string_to_sign = format!(
+            "{AWS_SIGN_ALGORITHM}\n{amz_date}\n{credential_scope}\n{canonical_request_hash}"
+        );
 
-        let signing_key = get_signature_key(&self.secret_key, &date_stamp, &self.region, AWS_SERVICE)?;
+        let signing_key =
+            get_signature_key(&self.secret_key, &date_stamp, &self.region, AWS_SERVICE)?;
 
         // Compute the Signature
         let mut mac = Hmac::<Sha256>::new_from_slice(&signing_key)?;
@@ -599,7 +646,6 @@ impl<T> S3RequestBuilder<T>
         let authorization_header = format!(
             "{AWS_SIGN_ALGORITHM} Credential={}/{credential_scope}, SignedHeaders={signed_headers}, Signature={signature}", self.access_key
         );
-
 
         let body = match &self.body {
             Some(b) => &b,
@@ -621,18 +667,15 @@ impl<T> S3RequestBuilder<T>
         match builder.headers_mut() {
             Some(headers) => {
                 for (key, value) in &self.headers {
-                    headers.insert(
-                        HeaderName::from_str(&key)?, 
-                        HeaderValue::from_str(&value)?);
+                    headers.insert(HeaderName::from_str(&key)?, HeaderValue::from_str(&value)?);
                 }
-            },
-            None => {},
+            }
+            None => {}
         };
 
         let request = S3Request::<T> {
             request: builder.body(body.into_body())?,
             phantom: PhantomData,
-            
         };
 
         Ok(request)

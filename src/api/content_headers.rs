@@ -1,6 +1,5 @@
 use chrono::{DateTime, Utc};
 
-
 pub enum CacheControl {
     MaxAge(i32),
     SMaxAge(i32),
@@ -40,7 +39,7 @@ pub enum ContentEncoding {
 }
 
 /// Set content headers on a request
-/// 
+///
 /// see [super::S3RequestBuilder::set_content_headers]
 pub struct ContentHeaders {
     cache_control: Vec<CacheControl>,
@@ -55,13 +54,13 @@ pub struct ContentHeaders {
 
 impl Default for ContentHeaders {
     fn default() -> Self {
-        Self { 
-            cache_control: Vec::new(), 
-            content_disposition: None, 
-            content_encoding: None, 
-            content_language: None, 
-            content_type: None, 
-            expires: None, 
+        Self {
+            cache_control: Vec::new(),
+            content_disposition: None,
+            content_encoding: None,
+            content_language: None,
+            content_type: None,
+            expires: None,
             range: None,
             content_md5: None,
         }
@@ -118,31 +117,37 @@ impl ContentHeaders {
             true => None,
             false => {
                 let mut cc_directives_str = String::new();
-                Some(self.cache_control.iter().map(|cc| {
-                    match cc {
-                        CacheControl::MaxAge(age) => format!("max-age={age}"),
-                        CacheControl::SMaxAge(age) => format!("s-maxage={age}"),
-                        CacheControl::MustRevalidate => "must-revalidate".to_string(),
-                        CacheControl::ProxyRevalidate => "proxy-revalidate".to_string(),
-                        CacheControl::Private => "private".to_string(),
-                        CacheControl::Public => "public".to_string(),
-                        CacheControl::MustUnderstand => "must-understand".to_string(),
-                        CacheControl::NoTransform => "no-transform".to_string(),
-                        CacheControl::Immutable => "immutable".to_string(),
-                        CacheControl::StaleWhileRevalidate(age) => format!("stale-while-revalidate={age}"),
-                        CacheControl::StaleIfError(age) => format!("stale-if-error={age}"),
-                        CacheControl::NoCache => "no-cache".to_string(),
-                        CacheControl::NoStore => "no-store".to_string(),
-                        CacheControl::MaxStale(age) => format!("max-stale={age}"),
-                        CacheControl::MinFresh(age) => format!("min-fresh={age}"),
-                        CacheControl::OnlyIfCached => "only-if-cached".to_string(),
-                        CacheControl::Value(str) => str.to_string()
-                    }
-                }).collect::<Vec<String>>().join(", "))
+                Some(
+                    self.cache_control
+                        .iter()
+                        .map(|cc| match cc {
+                            CacheControl::MaxAge(age) => format!("max-age={age}"),
+                            CacheControl::SMaxAge(age) => format!("s-maxage={age}"),
+                            CacheControl::MustRevalidate => "must-revalidate".to_string(),
+                            CacheControl::ProxyRevalidate => "proxy-revalidate".to_string(),
+                            CacheControl::Private => "private".to_string(),
+                            CacheControl::Public => "public".to_string(),
+                            CacheControl::MustUnderstand => "must-understand".to_string(),
+                            CacheControl::NoTransform => "no-transform".to_string(),
+                            CacheControl::Immutable => "immutable".to_string(),
+                            CacheControl::StaleWhileRevalidate(age) => {
+                                format!("stale-while-revalidate={age}")
+                            }
+                            CacheControl::StaleIfError(age) => format!("stale-if-error={age}"),
+                            CacheControl::NoCache => "no-cache".to_string(),
+                            CacheControl::NoStore => "no-store".to_string(),
+                            CacheControl::MaxStale(age) => format!("max-stale={age}"),
+                            CacheControl::MinFresh(age) => format!("min-fresh={age}"),
+                            CacheControl::OnlyIfCached => "only-if-cached".to_string(),
+                            CacheControl::Value(str) => str.to_string(),
+                        })
+                        .collect::<Vec<String>>()
+                        .join(", "),
+                )
             }
         }
     }
-    
+
     fn get_content_disposition_str(&self) -> Option<String> {
         match &self.content_disposition {
             Some(d) => {
@@ -151,12 +156,12 @@ impl ContentHeaders {
                     ContentDisposition::Attachment => "attachment",
                     ContentDisposition::AttachmentWithFile(filename) => {
                         &format!("attachment; filename={filename}")
-                    },
+                    }
                     ContentDisposition::Value(str) => str,
                 };
 
                 Some(disp.to_string())
-            },
+            }
             None => None,
         }
     }
@@ -176,7 +181,7 @@ impl ContentHeaders {
                 };
 
                 Some(e.to_string())
-            },
+            }
             None => None,
         }
     }
@@ -190,66 +195,46 @@ impl ContentHeaders {
                 };
 
                 Some(("Range".to_string(), format!("bytes={start}-{end_str}")))
-            },
+            }
             None => None,
         }
-    } 
+    }
 
     pub(crate) fn get_headers(&self) -> Vec<(String, String)> {
         let mut headers = Vec::new();
         if let Some(control) = &self.get_cache_control_str() {
-            headers.push((
-                "Cache-Control".to_string(), 
-                control.to_owned()
-            ));
+            headers.push(("Cache-Control".to_string(), control.to_owned()));
         }
 
         if let Some(disposition) = &self.get_content_disposition_str() {
-            headers.push((
-                "Content-Disposition".to_string(), 
-                disposition.to_owned()));
+            headers.push(("Content-Disposition".to_string(), disposition.to_owned()));
         }
 
         if let Some(encoding) = &self.get_content_encoding_str() {
-            headers.push((
-                "Content-Encoding".to_string(), 
-                encoding.to_owned()
-            ));
+            headers.push(("Content-Encoding".to_string(), encoding.to_owned()));
         }
 
         if let Some(language) = &self.content_language {
-            headers.push((
-                "Content-Language".to_string(), 
-                language.to_owned()
-            ));
+            headers.push(("Content-Language".to_string(), language.to_owned()));
         }
 
         if let Some(content_type) = &self.content_type {
-            headers.push((
-                "Content-Type".to_string(), 
-                content_type.to_owned()
-            ));
+            headers.push(("Content-Type".to_string(), content_type.to_owned()));
         }
 
         if let Some(expires) = &self.expires {
             headers.push((
-                "Expires".to_string(), 
-                expires.format("%A, %d %b %Y %H:%M:%S GMT").to_string()
+                "Expires".to_string(),
+                expires.format("%A, %d %b %Y %H:%M:%S GMT").to_string(),
             ));
         }
 
-        if let Some(checksum,) = &self.content_md5 {
-            headers.push((
-                "Content-MD5".to_string(), 
-                checksum.to_owned()
-            ));
+        if let Some(checksum) = &self.content_md5 {
+            headers.push(("Content-MD5".to_string(), checksum.to_owned()));
         }
-        
+
         if let Some((key, value)) = self.get_range_header() {
-            headers.push((
-                key, 
-                value
-            ));
+            headers.push((key, value));
         }
 
         headers
@@ -258,44 +243,29 @@ impl ContentHeaders {
     pub(crate) fn get_query(&self) -> Vec<(String, String)> {
         let mut query = Vec::new();
         if let Some(control) = self.get_cache_control_str() {
-            query.push((
-                "response-cache-control".to_string(),
-                control
-            ));
+            query.push(("response-cache-control".to_string(), control));
         }
 
         if let Some(disposition) = self.get_content_disposition_str() {
-            query.push((
-                "response-content-disposition".to_string(),
-                disposition
-            ));
+            query.push(("response-content-disposition".to_string(), disposition));
         }
 
         if let Some(encoding) = self.get_content_encoding_str() {
-            query.push((
-                "response-content-encoding".to_string(),
-                encoding
-            ));
+            query.push(("response-content-encoding".to_string(), encoding));
         }
 
         if let Some(lang) = &self.content_language {
-            query.push((
-                "response-content-language".to_string(),
-                lang.to_owned()
-            ));
+            query.push(("response-content-language".to_string(), lang.to_owned()));
         }
 
         if let Some(content_type) = &self.content_type {
-            query.push((
-                "response-content-type".to_string(),
-                content_type.to_owned()
-            ));
+            query.push(("response-content-type".to_string(), content_type.to_owned()));
         }
 
         if let Some(expires) = self.expires {
             query.push((
                 "response-expires".to_string(),
-                expires.format("%A, %d %b %Y %H:%M:%S GMT").to_string()
+                expires.format("%A, %d %b %Y %H:%M:%S GMT").to_string(),
             ));
         }
 

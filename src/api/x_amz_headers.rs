@@ -1,6 +1,5 @@
 use chrono::{DateTime, Utc};
 
-
 pub enum XAmzCannedAcl {
     Private,
     PublicRead,
@@ -26,12 +25,11 @@ pub enum XAmzGrants {
     Read,
     ReadACP,
     WriteACP,
-
 }
 
 pub enum XAmzObjectLockMode {
     Governance,
-    Compliance
+    Compliance,
 }
 
 pub enum XAmzServerSideEncryption {
@@ -69,12 +67,12 @@ pub(crate) fn storage_class_from_str(class: String) -> XAmzStorageClass {
         c if c == "snow" => XAmzStorageClass::Snow,
         c if c == "express_onezone" => XAmzStorageClass::ExpressOneZone,
 
-        c => XAmzStorageClass::StorageClass(c)
+        c => XAmzStorageClass::StorageClass(c),
     }
 }
 
 /// Set x-amz headers on a request
-/// 
+///
 /// see [super::S3RequestBuilder::set_x_amz_headers]
 pub struct XAmzHeaders {
     pub(crate) headers: Vec<(String, String)>,
@@ -112,7 +110,6 @@ pub struct XAmzHeadersBuilder {
     website_redirect_location: Option<String>,
     write_offset: Option<i32>,
 
-    
     headers: Vec<(String, String)>,
 }
 
@@ -139,7 +136,7 @@ impl XAmzHeadersBuilder {
     pub fn encryption_customer_algorithm(self, algorithm: &str) -> Self {
         Self {
             encryption_customer_algorithm: Some(algorithm.to_owned()),
-             ..self
+            ..self
         }
     }
     pub fn encryption_customer_key(self, base64_encoded_key: &str) -> Self {
@@ -159,7 +156,7 @@ impl XAmzHeadersBuilder {
             encryption_algorithm: Some(algorithm),
             ..self
         }
-    } 
+    }
     pub fn encryption_kms_key_id(self, key_id: &str) -> Self {
         Self {
             encryption_kms_key_id: Some(key_id.to_owned()),
@@ -227,10 +224,7 @@ impl XAmzHeadersBuilder {
 
     pub fn add_tag(self, key: &str, value: &str) -> Self {
         let mut tags = self.tagging;
-        tags.push((
-            key.to_owned(), 
-            value.to_owned()
-        ));
+        tags.push((key.to_owned(), value.to_owned()));
         Self {
             tagging: tags,
             ..self
@@ -252,12 +246,8 @@ impl XAmzHeadersBuilder {
     pub fn add_header(self, key: &str, value: &str) -> Self {
         let mut headers = self.headers;
         headers.push((key.to_lowercase(), value.trim().to_owned()));
-        Self {
-            headers,
-            ..self
-        }
+        Self { headers, ..self }
     }
-    
 
     fn get_encryption_algorithm(&self) -> Option<String> {
         match &self.encryption_algorithm {
@@ -270,7 +260,7 @@ impl XAmzHeadersBuilder {
                 };
 
                 Some(a.to_owned())
-            },
+            }
             None => None,
         }
     }
@@ -289,7 +279,7 @@ impl XAmzHeadersBuilder {
                 };
 
                 Some(a.to_owned())
-            },
+            }
             None => None,
         }
     }
@@ -297,26 +287,16 @@ impl XAmzHeadersBuilder {
         match &self.checksum {
             Some(checksum) => {
                 let (key, check) = match checksum {
-                    XAmzChecksum::CRC32(sum) => {
-                        ("crc32".to_string(), sum)
-                    },
-                    XAmzChecksum::CRC32C(sum) => {
-                        ("crc32c".to_string(), sum)
-                    },
-                    XAmzChecksum::CRC64NVME(sum) => {
-                        ("crc64nvme".to_string(), sum)
-                    },
-                    XAmzChecksum::SHA1(sum) => {
-                        ("sha1".to_string(), sum)
-                    },
-                    XAmzChecksum::Sha256(sum) => {
-                        ("sha256".to_string(), sum)
-                    },
+                    XAmzChecksum::CRC32(sum) => ("crc32".to_string(), sum),
+                    XAmzChecksum::CRC32C(sum) => ("crc32c".to_string(), sum),
+                    XAmzChecksum::CRC64NVME(sum) => ("crc64nvme".to_string(), sum),
+                    XAmzChecksum::SHA1(sum) => ("sha1".to_string(), sum),
+                    XAmzChecksum::Sha256(sum) => ("sha256".to_string(), sum),
                     XAmzChecksum::Checksum(k, sum) => (k.to_owned(), sum),
                 };
 
                 Some((format!("x-amz-checksum-{key}"), check.to_owned()))
-            },
+            }
             None => None,
         }
     }
@@ -325,29 +305,17 @@ impl XAmzHeadersBuilder {
         for grant in &self.grants {
             match grant {
                 XAmzGrants::FullControl => {
-                    headers.push((
-                        "x-amz-grant-full-control".to_string(), 
-                        String::new()
-                    ));
-                },
+                    headers.push(("x-amz-grant-full-control".to_string(), String::new()));
+                }
                 XAmzGrants::Read => {
-                    headers.push((
-                        "x-amz-grant-read".to_string(), 
-                        String::new()
-                    ));
-                },
+                    headers.push(("x-amz-grant-read".to_string(), String::new()));
+                }
                 XAmzGrants::ReadACP => {
-                    headers.push((
-                        "x-amz-grant-read-acp".to_string(), 
-                        String::new()
-                    ));
-                },
+                    headers.push(("x-amz-grant-read-acp".to_string(), String::new()));
+                }
                 XAmzGrants::WriteACP => {
-                    headers.push((
-                        "x-amz-grant-write-acp".to_string(), 
-                        String::new()
-                    ));
-                },
+                    headers.push(("x-amz-grant-write-acp".to_string(), String::new()));
+                }
             }
         }
 
@@ -372,163 +340,138 @@ impl XAmzHeadersBuilder {
                 };
 
                 Some(c.to_owned())
-            },
+            }
             None => None,
         }
     }
     fn get_tagging(&self) -> Option<String> {
         if self.tagging.is_empty() {
-            return None
+            return None;
         }
 
-        Some(self.tagging.iter().map(|(k,v)| {
-            format!("{k}={v}")
-        }).collect::<Vec::<String>>().join("&"))
+        Some(
+            self.tagging
+                .iter()
+                .map(|(k, v)| format!("{k}={v}"))
+                .collect::<Vec<String>>()
+                .join("&"),
+        )
     }
-    
+
     pub fn build(&self) -> XAmzHeaders {
         let mut headers = Vec::new();
         if self.checksum_mode {
-            headers.push((
-                "x-amz-checksum-mode".to_string(), 
-                "ENABLED".to_string()));
+            headers.push(("x-amz-checksum-mode".to_string(), "ENABLED".to_string()));
         }
         if let Some(owner) = &self.expected_bucket_owner {
-            headers.push((
-                "x-amz-expected-bucket-owner".to_string(), 
-                owner.to_owned()
-            ));
+            headers.push(("x-amz-expected-bucket-owner".to_string(), owner.to_owned()));
         }
         if self.request_payer {
-            headers.push((
-                "x-amz-request-payer".to_string(), 
-                "requester".to_string()));
+            headers.push(("x-amz-request-payer".to_string(), "requester".to_string()));
         }
 
         if let Some(algorithm) = &self.encryption_customer_algorithm {
             headers.push((
-                "x-amz-server-side-encryption-customer-algorithm".to_string(), 
-                algorithm.to_owned()
+                "x-amz-server-side-encryption-customer-algorithm".to_string(),
+                algorithm.to_owned(),
             ));
         }
         if let Some(key) = &self.encryption_customer_key {
             headers.push((
-                "x-amz-server-side-encryption-customer-key".to_string(), 
-                key.to_owned()
+                "x-amz-server-side-encryption-customer-key".to_string(),
+                key.to_owned(),
             ));
         }
         if let Some(md5) = &self.encryption_customer_key_md5 {
             headers.push((
-                "x-amz-server-side-encryption-customer-key-MD5".to_string(), 
-                md5.to_owned()
+                "x-amz-server-side-encryption-customer-key-MD5".to_string(),
+                md5.to_owned(),
             ));
         }
         if let Some(algorithm) = self.get_encryption_algorithm() {
-            headers.push((
-                "x-amz-server-side-encryption".to_string(),
-                algorithm
-            ));
+            headers.push(("x-amz-server-side-encryption".to_string(), algorithm));
         }
         if let Some(key) = &self.encryption_kms_key_id {
             headers.push((
                 "x-amz-server-side-encryption-aws-kms-key-id".to_string(),
-                key.to_owned()
+                key.to_owned(),
             ));
         }
         if self.encryption_bucket_key {
             headers.push((
                 "x-amz-server-side-encryption-bucket-key-enabled".to_string(),
-                "true".to_string()
+                "true".to_string(),
             ));
         }
         if let Some(context) = &self.encryption_context {
             headers.push((
                 "x-amz-server-side-encryption-context".to_string(),
-                context.to_owned()
+                context.to_owned(),
             ));
         }
 
         if let Some(acl) = self.get_canned_acl() {
-            headers.push((
-                "x-amz-acl".to_string(),
-                acl
-            ));
+            headers.push(("x-amz-acl".to_string(), acl));
         }
         if let Some((key, value)) = self.get_checksum_header() {
-            headers.push((
-                key,
-                value
-            ));
+            headers.push((key, value));
         }
         let grants = self.get_grants_headers();
         for (key, value) in grants {
-            headers.push((
-                key,
-                value
-            ));
+            headers.push((key, value));
         }
         if let Some(class) = self.get_storage_class() {
-            headers.push((
-                "x-amz-storage-class".to_string(),
-                class
-            ));
+            headers.push(("x-amz-storage-class".to_string(), class));
         }
-        
+
         if let Some(tagging) = self.get_tagging() {
-            headers.push((
-                "x-amz-tagging".to_string(),
-                tagging
-            ));
+            headers.push(("x-amz-tagging".to_string(), tagging));
         }
         if let Some(redirect) = &self.website_redirect_location {
             headers.push((
                 "x-amz-website-redirect-location".to_string(),
-                redirect.to_owned()
+                redirect.to_owned(),
             ));
         }
         if let Some(offset) = self.write_offset {
-            headers.push((
-                "x-amz-write-offset-bytes".to_string(),
-                offset.to_string()
-            ));
+            headers.push(("x-amz-write-offset-bytes".to_string(), offset.to_string()));
         }
-
 
         for (key, value) in &self.headers {
             headers.push((key.to_owned(), value.to_owned()));
         }
 
         XAmzHeaders { headers }
-    }    
+    }
 }
 
 impl Default for XAmzHeadersBuilder {
     fn default() -> Self {
-        Self { 
-            checksum_mode: false, 
-            expected_bucket_owner: None, 
-            request_payer: false, 
+        Self {
+            checksum_mode: false,
+            expected_bucket_owner: None,
+            request_payer: false,
 
-            encryption_customer_algorithm: None, 
-            encryption_customer_key: None, 
-            encryption_customer_key_md5: None, 
-            encryption_algorithm: None, 
-            encryption_kms_key_id: None, 
-            encryption_bucket_key: false, 
-            encryption_context: None, 
+            encryption_customer_algorithm: None,
+            encryption_customer_key: None,
+            encryption_customer_key_md5: None,
+            encryption_algorithm: None,
+            encryption_kms_key_id: None,
+            encryption_bucket_key: false,
+            encryption_context: None,
 
-            object_lock_legal_hold: false, 
-            object_lock_mode: None, 
-            object_lock_retain_until: None, 
+            object_lock_legal_hold: false,
+            object_lock_mode: None,
+            object_lock_retain_until: None,
 
-            canned_acl: None, 
-            checksum: None, 
-            grants: Vec::new(), 
-            storage_class: None, 
+            canned_acl: None,
+            checksum: None,
+            grants: Vec::new(),
+            storage_class: None,
 
-            tagging: Vec::new(), 
-            website_redirect_location: None, 
-            write_offset: None, 
+            tagging: Vec::new(),
+            website_redirect_location: None,
+            write_offset: None,
 
             headers: Vec::new(),
         }

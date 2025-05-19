@@ -6,7 +6,7 @@ use x_amz_headers::{storage_class_from_str, XAmzHeaders, XAmzStorageClass};
 
 use http::{response::Parts, StatusCode};
 use percent_encoding::{AsciiSet, CONTROLS};
-use anyhow::{anyhow, Ok, Result};
+use anyhow::{anyhow, Result};
 use chrono::{DateTime, Utc};
 use hmac::{Hmac, Mac};
 use sha2::{Digest, Sha256};
@@ -105,7 +105,7 @@ pub(crate) fn parse_xml_value<T>(parser: &mut EventReader<&[u8]>, field: &str) -
     where T: FromStr {
     if let XmlEvent::Characters(value) = parser.next()? {
         match value.parse::<T>() {
-            std::result::Result::Ok(v) => Ok(v),
+            Ok(v) => Ok(v),
             Err(_) => Err(anyhow!("Unable to parse value for field {field}, value {value}")),
         }
     } else {
@@ -454,6 +454,14 @@ impl<T> S3RequestBuilder<T>
             self
         }
     }
+    /// Add a headers
+    pub fn headers(&mut self, headers: Vec<(String, String)>) -> &mut Self {
+        for (k, v) in headers {
+            self.header(&k, &v);
+        }
+
+        self
+    }
     /// Set the request body
     pub fn body<B>(&mut self, body: B) -> &mut Self 
         where B: AsRef<[u8]> {
@@ -499,10 +507,10 @@ impl<T> S3RequestBuilder<T>
     }
     /// Set the request x-amz headers
     /// 
-    /// See [XAmzHeaders]
+    /// See [XAmzHeaders] and [x_amz_headers::XAmzHeadersBuilder]
     /// [S3RequestBuilder::headers] can be easier if adding a small amount of headers
     pub fn set_x_amz_headers(&mut self, xamz: &XAmzHeaders)  -> &mut Self {
-        let mut xamz_headers = xamz.get_headers();
+        let mut xamz_headers = xamz.headers();
         self.x_amz_headers.append(&mut xamz_headers);
         self
     }

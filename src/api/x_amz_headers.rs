@@ -77,6 +77,16 @@ pub(crate) fn storage_class_from_str(class: String) -> XAmzStorageClass {
 /// 
 /// see [super::S3RequestBuilder::set_x_amz_headers]
 pub struct XAmzHeaders {
+    pub(crate) headers: Vec<(String, String)>,
+}
+
+impl XAmzHeaders {
+    pub(crate) fn headers(&self) -> Vec<(String, String)> {
+        self.headers.clone()
+    }
+}
+
+pub struct XAmzHeadersBuilder {
     checksum_mode: bool,
     expected_bucket_owner: Option<String>,
     request_payer: bool,
@@ -93,7 +103,6 @@ pub struct XAmzHeaders {
     object_lock_mode: Option<XAmzObjectLockMode>,
     object_lock_retain_until: Option<DateTime<Utc>>,
 
-
     canned_acl: Option<XAmzCannedAcl>,
     checksum: Option<XAmzChecksum>,
     grants: Vec<XAmzGrants>,
@@ -103,136 +112,152 @@ pub struct XAmzHeaders {
     website_redirect_location: Option<String>,
     write_offset: Option<i32>,
 
-
+    
     headers: Vec<(String, String)>,
 }
 
-impl Default for XAmzHeaders {
-    fn default() -> Self {
-        Self { 
-            checksum_mode: false, 
-            expected_bucket_owner: None, 
-            request_payer: false, 
-
-            encryption_customer_algorithm: None, 
-            encryption_customer_key: None, 
-            encryption_customer_key_md5: None,
-            encryption_algorithm: None,
-            encryption_kms_key_id: None,
-            encryption_bucket_key: false,
-            encryption_context: None,
-
-            object_lock_legal_hold: false,
-            object_lock_mode: None,
-            object_lock_retain_until: None,
-
-            canned_acl: None,
-            checksum: None,
-            grants: Vec::new(),
-            storage_class: None,
-
-            tagging: Vec::new(),
-            website_redirect_location: None,
-            write_offset: None,
-
-            headers: Vec::new()
+impl XAmzHeadersBuilder {
+    pub fn enable_checksum_mode(self) -> Self {
+        Self {
+            checksum_mode: true,
+            ..self
         }
     }
-}
-
-impl XAmzHeaders {
-    pub fn enable_checksum_mode(&mut self) -> &mut Self {
-        self.checksum_mode = true;
-        self
+    pub fn expected_bucket_owner(self, owner: &str) -> Self {
+        Self {
+            expected_bucket_owner: Some(owner.to_owned()),
+            ..self
+        }
     }
-    pub fn expected_bucket_owner(&mut self, owner: &str) -> &mut Self {
-        self.expected_bucket_owner = Some(owner.to_owned());
-        self
-    }
-    pub fn enable_request_payer(&mut self) -> &mut Self {
-        self.request_payer = true;
-        self
+    pub fn enable_request_payer(self) -> Self {
+        Self {
+            request_payer: true,
+            ..self
+        }
     }
 
-    pub fn encryption_customer_algorithm(&mut self, algorithm: &str) -> &mut Self {
-        self.encryption_customer_algorithm = Some(algorithm.to_owned());
-        self
+    pub fn encryption_customer_algorithm(self, algorithm: &str) -> Self {
+        Self {
+            encryption_customer_algorithm: Some(algorithm.to_owned()),
+             ..self
+        }
     }
-    pub fn encryption_customer_key(&mut self, base64_encoded_key: &str) -> &mut Self {
-        self.encryption_customer_key = Some(base64_encoded_key.to_owned());
-        self
+    pub fn encryption_customer_key(self, base64_encoded_key: &str) -> Self {
+        Self {
+            encryption_customer_key: Some(base64_encoded_key.to_owned()),
+            ..self
+        }
     }
-    pub fn encryption_customer_key_md5(&mut self, base64_encoded_key_md5: &str) -> &mut Self {
-        self.encryption_customer_key_md5 = Some(base64_encoded_key_md5.to_owned());
-        self
+    pub fn encryption_customer_key_md5(self, base64_encoded_key_md5: &str) -> Self {
+        Self {
+            encryption_customer_key_md5: Some(base64_encoded_key_md5.to_owned()),
+            ..self
+        }
     }
-    pub fn encryption_algorithm(&mut self, algorithm: XAmzServerSideEncryption) -> &mut Self {
-        self.encryption_algorithm = Some(algorithm);
-        self
+    pub fn encryption_algorithm(self, algorithm: XAmzServerSideEncryption) -> Self {
+        Self {
+            encryption_algorithm: Some(algorithm),
+            ..self
+        }
     } 
-    pub fn encryption_kms_key_id(&mut self, key_id: &str) -> &mut Self {
-        self.encryption_kms_key_id = Some(key_id.to_owned());
-        self
+    pub fn encryption_kms_key_id(self, key_id: &str) -> Self {
+        Self {
+            encryption_kms_key_id: Some(key_id.to_owned()),
+            ..self
+        }
     }
-    pub fn set_encryption_bucket_key(&mut self) -> &mut Self {
-        self.encryption_bucket_key = true;
-        self
+    pub fn set_encryption_bucket_key(self) -> Self {
+        Self {
+            encryption_bucket_key: true,
+            ..self
+        }
     }
-    pub fn encryption_context(&mut self, context: String) -> &mut Self {
-        self.encryption_context = Some(context);
-        self
-    }
-
-    pub fn set_object_lock_legal_hold(&mut self) -> &mut Self {
-        self.object_lock_legal_hold = true;
-        self
-    }
-    pub fn object_lock_mode(&mut self, mode: XAmzObjectLockMode) -> &mut Self {
-        self.object_lock_mode = Some(mode);
-        self
-    }
-    pub fn object_lock_retain_until(&mut self, date: DateTime<Utc>) -> &mut Self {
-        self.object_lock_retain_until = Some(date);
-        self
+    pub fn encryption_context(self, context: String) -> Self {
+        Self {
+            encryption_context: Some(context),
+            ..self
+        }
     }
 
-    pub fn canned_acl(&mut self, acl: XAmzCannedAcl) -> &mut Self {
-        self.canned_acl = Some(acl);
-        self
+    pub fn set_object_lock_legal_hold(self) -> Self {
+        Self {
+            object_lock_legal_hold: true,
+            ..self
+        }
     }
-    pub fn checksum(&mut self, checksum: XAmzChecksum) -> &mut Self {
-        self.checksum = Some(checksum);
-        self
+    pub fn object_lock_mode(self, mode: XAmzObjectLockMode) -> Self {
+        Self {
+            object_lock_mode: Some(mode),
+            ..self
+        }
     }
-    pub fn add_grant(&mut self, grant: XAmzGrants) -> &mut Self {
-        self.grants.push(grant);
-        self
-    }
-    pub fn storage_class(&mut self, class: XAmzStorageClass) -> &mut Self {
-        self.storage_class = Some(class);
-        self
+    pub fn object_lock_retain_until(self, date: DateTime<Utc>) -> Self {
+        Self {
+            object_lock_retain_until: Some(date),
+            ..self
+        }
     }
 
-    pub fn add_tag(&mut self, key: &str, value: &str) -> &mut Self {
-        self.tagging.push((
+    pub fn canned_acl(self, acl: XAmzCannedAcl) -> Self {
+        Self {
+            canned_acl: Some(acl),
+            ..self
+        }
+    }
+    pub fn checksum(self, checksum: XAmzChecksum) -> Self {
+        Self {
+            checksum: Some(checksum),
+            ..self
+        }
+    }
+    pub fn add_grant(self, grant: XAmzGrants) -> Self {
+        let mut grants = self.grants;
+        grants.push(grant);
+        Self {
+            grants: grants,
+            ..self
+        }
+    }
+    pub fn storage_class(self, class: XAmzStorageClass) -> Self {
+        Self {
+            storage_class: Some(class),
+            ..self
+        }
+    }
+
+    pub fn add_tag(self, key: &str, value: &str) -> Self {
+        let mut tags = self.tagging;
+        tags.push((
             key.to_owned(), 
             value.to_owned()
         ));
-        self
+        Self {
+            tagging: tags,
+            ..self
+        }
     }
-    pub fn website_redirect_location(&mut self, location: String) -> &mut Self {
-        self.website_redirect_location = Some(location);
-        self
+    pub fn website_redirect_location(self, location: String) -> Self {
+        Self {
+            website_redirect_location: Some(location),
+            ..self
+        }
     }
-    pub fn write_offset(&mut self, bytes: i32) -> &mut Self {
-        self.write_offset = Some(bytes);
-        self
+    pub fn write_offset(self, bytes: i32) -> Self {
+        Self {
+            write_offset: Some(bytes),
+            ..self
+        }
     }
 
-    pub fn add_header(&mut self, key: &str, value: &str) -> &mut Self {
-        self.headers.push((key.to_lowercase(), value.trim().to_owned()));
-        self
+    pub fn add_header(self, key: &str, value: &str) -> Self {
+        let mut headers = self.headers;
+        headers.push((key.to_lowercase(), value.trim().to_owned()));
+        Self {
+            headers,
+            ..self
+        }
     }
+    
 
     fn get_encryption_algorithm(&self) -> Option<String> {
         match &self.encryption_algorithm {
@@ -361,7 +386,7 @@ impl XAmzHeaders {
         }).collect::<Vec::<String>>().join("&"))
     }
     
-    pub(crate) fn get_headers(&self) -> Vec<(String, String)> {
+    pub fn build(&self) -> XAmzHeaders {
         let mut headers = Vec::new();
         if self.checksum_mode {
             headers.push((
@@ -473,6 +498,39 @@ impl XAmzHeaders {
             headers.push((key.to_owned(), value.to_owned()));
         }
 
-        headers
+        XAmzHeaders { headers }
+    }    
+}
+
+impl Default for XAmzHeadersBuilder {
+    fn default() -> Self {
+        Self { 
+            checksum_mode: false, 
+            expected_bucket_owner: None, 
+            request_payer: false, 
+
+            encryption_customer_algorithm: None, 
+            encryption_customer_key: None, 
+            encryption_customer_key_md5: None, 
+            encryption_algorithm: None, 
+            encryption_kms_key_id: None, 
+            encryption_bucket_key: false, 
+            encryption_context: None, 
+
+            object_lock_legal_hold: false, 
+            object_lock_mode: None, 
+            object_lock_retain_until: None, 
+
+            canned_acl: None, 
+            checksum: None, 
+            grants: Vec::new(), 
+            storage_class: None, 
+
+            tagging: Vec::new(), 
+            website_redirect_location: None, 
+            write_offset: None, 
+
+            headers: Vec::new(),
+        }
     }
 }

@@ -610,11 +610,12 @@ where
         canonical_headers_vec.push(("x-amz-content-sha256".to_string(), payload_hash.clone()));
         canonical_headers_vec.push(("x-amz-date".to_string(), amz_date.clone()));
         canonical_headers_vec.sort();
-        let canonical_headers = canonical_headers_vec
+        let mut canonical_headers = canonical_headers_vec
             .iter()
-            .map(|(k, v)| format!("{k}: {v}"))
+            .map(|(k, v)| format!("{k}:{v}"))
             .collect::<Vec<String>>()
             .join("\n");
+        canonical_headers.push_str("\n");
         let signed_headers = canonical_headers_vec
             .iter()
             .map(|(k, _)| k.to_owned())

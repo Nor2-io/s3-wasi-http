@@ -3,6 +3,7 @@ use chrono::{DateTime, Utc};
 /// Set conditional headers on a request
 ///
 /// see [super::S3RequestBuilder::set_conditional_headers]
+#[derive(Default)]
 pub struct ConditionalHeaders {
     if_match: Option<String>,
     if_modified_since: Option<DateTime<Utc>>,
@@ -10,16 +11,6 @@ pub struct ConditionalHeaders {
     if_unmodified_since: Option<DateTime<Utc>>,
 }
 
-impl Default for ConditionalHeaders {
-    fn default() -> Self {
-        Self {
-            if_match: None,
-            if_modified_since: None,
-            if_none_match: None,
-            if_unmodified_since: None,
-        }
-    }
-}
 
 impl ConditionalHeaders {
     pub fn if_match(&mut self, value: &str) -> &mut Self {

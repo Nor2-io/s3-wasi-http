@@ -1,5 +1,5 @@
 use anyhow::Result;
-use wstd::http::{Body, Method, body::IncomingBody};
+use wstd::http::{Body, Method};
 
 use super::{S3RequestBuilder, S3RequestData, S3ResponseData};
 

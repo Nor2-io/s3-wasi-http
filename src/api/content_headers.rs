@@ -41,6 +41,7 @@ pub enum ContentEncoding {
 /// Set content headers on a request
 ///
 /// see [super::S3RequestBuilder::set_content_headers]
+#[derive(Default)]
 pub struct ContentHeaders {
     cache_control: Vec<CacheControl>,
     content_disposition: Option<ContentDisposition>,
@@ -52,20 +53,6 @@ pub struct ContentHeaders {
     content_md5: Option<String>,
 }
 
-impl Default for ContentHeaders {
-    fn default() -> Self {
-        Self {
-            cache_control: Vec::new(),
-            content_disposition: None,
-            content_encoding: None,
-            content_language: None,
-            content_type: None,
-            expires: None,
-            range: None,
-            content_md5: None,
-        }
-    }
-}
 
 impl ContentHeaders {
     pub fn add_cache_control(&mut self, cache_control: CacheControl) -> &mut Self {

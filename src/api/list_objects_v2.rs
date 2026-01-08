@@ -9,6 +9,7 @@ use super::{
     parse_xml_value,
 };
 
+#[derive(Default)]
 pub struct ListObjectsV2Request {
     pub token: Option<String>,
     pub delimiter: Option<char>,
@@ -18,18 +19,6 @@ pub struct ListObjectsV2Request {
     pub start_after: Option<String>,
 }
 
-impl Default for ListObjectsV2Request {
-    fn default() -> Self {
-        Self {
-            token: None,
-            delimiter: None,
-            encoding_type: None,
-            fetch_owner: false,
-            max_keys: None,
-            start_after: None,
-        }
-    }
-}
 
 impl S3RequestData for ListObjectsV2Request {
     type ResponseType = ListObjectsV2Response;

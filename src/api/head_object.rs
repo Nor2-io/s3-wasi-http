@@ -39,7 +39,7 @@ impl S3RequestData for HeadObjectRequest {
         );
 
         if let Some(part_number) = self.part_number {
-            if part_number >= 1 && part_number <= 10000 {
+            if (1..=10000).contains(&part_number) {
                 builder.query("partNumber", Some(&part_number.to_string()));
             } else {
                 return Err(anyhow!(

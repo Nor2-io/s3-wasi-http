@@ -83,7 +83,7 @@ pub(crate) fn parse_xml_string(parser: &mut EventReader<&[u8]>, field: &str) -> 
     if let XmlEvent::Characters(value) = parser.next()? {
         Ok(value)
     } else {
-        return Err(anyhow!("Invalid response object, {field} has no value"));
+        Err(anyhow!("Invalid response object, {field} has no value"))
     }
 }
 
@@ -93,15 +93,15 @@ pub(crate) fn parse_xml_bool(parser: &mut EventReader<&[u8]>, field: &str) -> Re
             v if v == "true" => Ok(true),
             v if v == "false" => Ok(false),
             _ => {
-                return Err(anyhow!(
+                Err(anyhow!(
                     "Invalid response object, {field} is not a boolean, value: {value}"
-                ));
+                ))
             }
         }
     } else {
-        return Err(anyhow!(
+        Err(anyhow!(
             "Invalid response object, {field} element has no value"
-        ));
+        ))
     }
 }
 
@@ -117,7 +117,7 @@ where
             )),
         }
     } else {
-        return Err(anyhow!("Invalid response object, {field} has no value"));
+        Err(anyhow!("Invalid response object, {field} has no value"))
     }
 }
 
@@ -186,7 +186,7 @@ impl ApiObject {
                 }
                 XmlEvent::StartElement { name, .. } if name.local_name == "LastModified" => {
                     if let XmlEvent::Characters(value) = &parser.next()? {
-                        let datetime = DateTime::parse_from_rfc3339(&value)?.to_utc();
+                        let datetime = DateTime::parse_from_rfc3339(value)?.to_utc();
                         api_object.last_modified = datetime;
                     } else {
                         return Err(anyhow!(
@@ -584,7 +584,7 @@ where
 
         // SHA-256 hash of the payload
         let payload_hash = match &self.body {
-            Some(b) => hex::encode(Sha256::digest(&b)),
+            Some(b) => hex::encode(Sha256::digest(b)),
             None => hex::encode(Sha256::digest(AWS_SERVICE_EMPTY_PAYLOAD)),
         };
 
@@ -612,7 +612,7 @@ where
             .map(|(k, v)| format!("{k}:{v}"))
             .collect::<Vec<String>>()
             .join("\n");
-        canonical_headers.push_str("\n");
+        canonical_headers.push('\n');
         let signed_headers = canonical_headers_vec
             .iter()
             .map(|(k, _)| k.to_owned())
@@ -647,7 +647,7 @@ where
         );
 
         let body = match &self.body {
-            Some(b) => &b,
+            Some(b) => b,
             None => "".as_bytes(),
         };
 
@@ -663,13 +663,10 @@ where
             .header("authorization", authorization_header)
             .header("content-length", body.len().to_string());
 
-        match builder.headers_mut() {
-            Some(headers) => {
-                for (key, value) in &self.headers {
-                    headers.insert(HeaderName::from_str(&key)?, HeaderValue::from_str(&value)?);
-                }
+        if let Some(headers) = builder.headers_mut() {
+            for (key, value) in &self.headers {
+                headers.insert(HeaderName::from_str(key)?, HeaderValue::from_str(value)?);
             }
-            None => {}
         };
 
         let request = S3Request::<T> {

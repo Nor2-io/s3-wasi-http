@@ -6,6 +6,7 @@ use super::{
     ApiBucket, ApiOwner, S3RequestBuilder, S3RequestData, S3ResponseData, parse_xml_string,
 };
 
+#[derive(Default)]
 pub struct ListBucketsRequest {
     bucket_region: Option<String>,
     token: Option<String>,
@@ -13,16 +14,6 @@ pub struct ListBucketsRequest {
     prefix: Option<String>,
 }
 
-impl Default for ListBucketsRequest {
-    fn default() -> Self {
-        Self {
-            bucket_region: None,
-            token: None,
-            max_buckets: None,
-            prefix: None,
-        }
-    }
-}
 
 impl S3RequestData for ListBucketsRequest {
     type ResponseType = ListBucketsResponse;
@@ -44,7 +35,7 @@ impl S3RequestData for ListBucketsRequest {
             builder.query("continuation-token", Some(token));
         }
         if let Some(max_buckets) = self.max_buckets {
-            if max_buckets >= 1 && max_buckets <= 10000 {
+            if (1..=10000).contains(&max_buckets) {
                 builder.query("max-buckets", Some(&max_buckets.to_string()));
             } else {
                 return Err(anyhow!(

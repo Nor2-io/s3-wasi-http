@@ -1,12 +1,9 @@
-use anyhow::{anyhow, Result};
-use wstd::{
-    http::{body::IncomingBody, Method},
-    io::AsyncRead,
-};
+use anyhow::{Result, anyhow};
+use wstd::http::{Body, Method};
 use xml::reader::{EventReader, XmlEvent};
 
 use super::{
-    parse_xml_string, ApiBucket, ApiOwner, S3RequestBuilder, S3RequestData, S3ResponseData,
+    ApiBucket, ApiOwner, S3RequestBuilder, S3RequestData, S3ResponseData, parse_xml_string,
 };
 
 pub struct ListBucketsRequest {
@@ -50,7 +47,9 @@ impl S3RequestData for ListBucketsRequest {
             if max_buckets >= 1 && max_buckets <= 10000 {
                 builder.query("max-buckets", Some(&max_buckets.to_string()));
             } else {
-                return Err(anyhow!("max_buckets has to be constrained to part_number >= and part_number <= 10000, part_number is {max_buckets}"));
+                return Err(anyhow!(
+                    "max_buckets has to be constrained to part_number >= and part_number <= 10000, part_number is {max_buckets}"
+                ));
             }
         }
         if let Some(prefix) = &self.prefix {
@@ -70,13 +69,12 @@ pub struct ListBucketsResponse {
 }
 
 impl S3ResponseData for ListBucketsResponse {
-    async fn parse_body(response: &mut IncomingBody) -> Result<Self>
+    async fn parse_body(response: &mut Body) -> Result<Self>
     where
         Self: Sized,
     {
-        let mut data = Vec::<u8>::new();
-        response.read_to_end(&mut data).await?;
-        let mut parser = EventReader::new(data.as_slice());
+        let data = response.contents().await?;
+        let mut parser = EventReader::new(data);
 
         let mut list_bucket_response = ListBucketsResponse {
             continuation_token: None,

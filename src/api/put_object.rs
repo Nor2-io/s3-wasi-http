@@ -1,5 +1,5 @@
 use anyhow::Result;
-use wstd::http::{body::IncomingBody, Method};
+use wstd::http::{Body, Method, body::IncomingBody};
 
 use super::{S3RequestBuilder, S3RequestData, S3ResponseData};
 
@@ -35,7 +35,7 @@ impl S3RequestData for PutObjectRequest {
 pub struct PutObjectResponse {}
 
 impl S3ResponseData for PutObjectResponse {
-    async fn parse_body(_response: &mut IncomingBody) -> Result<Self>
+    async fn parse_body(_response: &mut Body) -> Result<Self>
     where
         Self: Sized,
     {

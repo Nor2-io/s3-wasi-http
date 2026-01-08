@@ -1,5 +1,5 @@
-use anyhow::{anyhow, Result};
-use wstd::http::{body::IncomingBody, Method};
+use anyhow::{Result, anyhow};
+use wstd::http::{Body, Method};
 
 use super::{S3RequestBuilder, S3RequestData, S3ResponseData};
 
@@ -42,7 +42,9 @@ impl S3RequestData for HeadObjectRequest {
             if part_number >= 1 && part_number <= 10000 {
                 builder.query("partNumber", Some(&part_number.to_string()));
             } else {
-                return Err(anyhow!("part_number has to be constrained to part_number >= 1 and part_number <= 10000, part_number is {part_number}"));
+                return Err(anyhow!(
+                    "part_number has to be constrained to part_number >= 1 and part_number <= 10000, part_number is {part_number}"
+                ));
             }
         }
         if let Some(version_id) = &self.version_id {
@@ -56,7 +58,7 @@ impl S3RequestData for HeadObjectRequest {
 pub struct HeadObjectResponse {}
 
 impl S3ResponseData for HeadObjectResponse {
-    async fn parse_body(_response: &mut IncomingBody) -> anyhow::Result<Self>
+    async fn parse_body(_response: &mut Body) -> anyhow::Result<Self>
     where
         Self: Sized,
     {

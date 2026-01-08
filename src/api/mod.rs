@@ -2,19 +2,16 @@ use std::{marker::PhantomData, str::FromStr};
 
 use conditional_headers::ConditionalHeaders;
 use content_headers::ContentHeaders;
-use x_amz_headers::{storage_class_from_str, XAmzHeaders, XAmzStorageClass};
+use x_amz_headers::{XAmzHeaders, XAmzStorageClass, storage_class_from_str};
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use chrono::{DateTime, Utc};
 use hmac::{Hmac, Mac};
-use http::{response::Parts, StatusCode};
+use http::{StatusCode, response::Parts};
 use percent_encoding::{AsciiSet, CONTROLS};
 use sha2::{Digest, Sha256};
-use wstd::http::{
-    body::{BoundedBody, IncomingBody},
-    HeaderName, HeaderValue, IntoBody, Method, Request, Response, Scheme, Uri,
-};
-use xml::{reader::XmlEvent, EventReader};
+use wstd::http::{Body, HeaderName, HeaderValue, Method, Request, Response, Scheme, Uri};
+use xml::{EventReader, reader::XmlEvent};
 
 use crate::AWS_SERVICE;
 
@@ -98,7 +95,7 @@ pub(crate) fn parse_xml_bool(parser: &mut EventReader<&[u8]>, field: &str) -> Re
             _ => {
                 return Err(anyhow!(
                     "Invalid response object, {field} is not a boolean, value: {value}"
-                ))
+                ));
             }
         }
     } else {
@@ -176,7 +173,7 @@ impl ApiObject {
                         _ => {
                             return Err(anyhow!(
                                 "Invalid response object, ChecksumType has an invalid type"
-                            ))
+                            ));
                         }
                     };
                     api_object.checksum_type = Some(checksum_type);
@@ -332,14 +329,14 @@ pub struct S3Request<T>
 where
     T: S3ResponseData,
 {
-    pub request: Request<BoundedBody<Vec<u8>>>,
+    pub request: Request<Body>,
     phantom: PhantomData<T>,
 }
 
 pub trait S3ResponseData {
     /// Parse the response body into a S3ResponseData struct
     #[allow(async_fn_in_trait)]
-    async fn parse_body(response: &mut IncomingBody) -> Result<Self>
+    async fn parse_body(response: &mut Body) -> Result<Self>
     where
         Self: Sized;
 }
@@ -349,7 +346,7 @@ where
     T: S3ResponseData,
 {
     head: Parts,
-    body: IncomingBody,
+    body: Body,
     phantom: PhantomData<T>,
 }
 
@@ -357,7 +354,7 @@ impl<T> S3Response<T>
 where
     T: S3ResponseData,
 {
-    pub fn from_response(response: Response<IncomingBody>) -> Result<Self> {
+    pub fn from_response(response: Response<Body>) -> Result<Self> {
         let (head, body) = response.into_parts();
         Ok(Self {
             head,
@@ -370,7 +367,7 @@ where
         self.head.status
     }
 
-    pub fn into_parts(self) -> (Parts, IncomingBody) {
+    pub fn into_parts(self) -> (Parts, Body) {
         (self.head, self.body)
     }
 
@@ -645,7 +642,8 @@ where
 
         // Authorization Header
         let authorization_header = format!(
-            "{AWS_SIGN_ALGORITHM} Credential={}/{credential_scope}, SignedHeaders={signed_headers}, Signature={signature}", self.access_key
+            "{AWS_SIGN_ALGORITHM} Credential={}/{credential_scope}, SignedHeaders={signed_headers}, Signature={signature}",
+            self.access_key
         );
 
         let body = match &self.body {
@@ -675,7 +673,7 @@ where
         };
 
         let request = S3Request::<T> {
-            request: builder.body(body.into_body())?,
+            request: builder.body(body.into())?,
             phantom: PhantomData,
         };
 

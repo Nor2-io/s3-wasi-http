@@ -2,19 +2,16 @@ use std::{marker::PhantomData, str::FromStr};
 
 use conditional_headers::ConditionalHeaders;
 use content_headers::ContentHeaders;
-use x_amz_headers::{storage_class_from_str, XAmzHeaders, XAmzStorageClass};
+use x_amz_headers::{XAmzHeaders, XAmzStorageClass, storage_class_from_str};
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use chrono::{DateTime, Utc};
 use hmac::{Hmac, Mac};
-use http::{response::Parts, StatusCode};
+use http::{StatusCode, response::Parts};
 use percent_encoding::{AsciiSet, CONTROLS};
 use sha2::{Digest, Sha256};
-use wstd::http::{
-    body::{BoundedBody, IncomingBody},
-    HeaderName, HeaderValue, IntoBody, Method, Request, Response, Scheme, Uri,
-};
-use xml::{reader::XmlEvent, EventReader};
+use wstd::http::{Body, HeaderName, HeaderValue, Method, Request, Response, Scheme, Uri};
+use xml::{EventReader, reader::XmlEvent};
 
 use crate::AWS_SERVICE;
 
@@ -86,7 +83,7 @@ pub(crate) fn parse_xml_string(parser: &mut EventReader<&[u8]>, field: &str) -> 
     if let XmlEvent::Characters(value) = parser.next()? {
         Ok(value)
     } else {
-        return Err(anyhow!("Invalid response object, {field} has no value"));
+        Err(anyhow!("Invalid response object, {field} has no value"))
     }
 }
 
@@ -96,15 +93,15 @@ pub(crate) fn parse_xml_bool(parser: &mut EventReader<&[u8]>, field: &str) -> Re
             v if v == "true" => Ok(true),
             v if v == "false" => Ok(false),
             _ => {
-                return Err(anyhow!(
+                Err(anyhow!(
                     "Invalid response object, {field} is not a boolean, value: {value}"
                 ))
             }
         }
     } else {
-        return Err(anyhow!(
+        Err(anyhow!(
             "Invalid response object, {field} element has no value"
-        ));
+        ))
     }
 }
 
@@ -120,7 +117,7 @@ where
             )),
         }
     } else {
-        return Err(anyhow!("Invalid response object, {field} has no value"));
+        Err(anyhow!("Invalid response object, {field} has no value"))
     }
 }
 
@@ -176,7 +173,7 @@ impl ApiObject {
                         _ => {
                             return Err(anyhow!(
                                 "Invalid response object, ChecksumType has an invalid type"
-                            ))
+                            ));
                         }
                     };
                     api_object.checksum_type = Some(checksum_type);
@@ -189,7 +186,7 @@ impl ApiObject {
                 }
                 XmlEvent::StartElement { name, .. } if name.local_name == "LastModified" => {
                     if let XmlEvent::Characters(value) = &parser.next()? {
-                        let datetime = DateTime::parse_from_rfc3339(&value)?.to_utc();
+                        let datetime = DateTime::parse_from_rfc3339(value)?.to_utc();
                         api_object.last_modified = datetime;
                     } else {
                         return Err(anyhow!(
@@ -332,14 +329,14 @@ pub struct S3Request<T>
 where
     T: S3ResponseData,
 {
-    pub request: Request<BoundedBody<Vec<u8>>>,
+    pub request: Request<Body>,
     phantom: PhantomData<T>,
 }
 
 pub trait S3ResponseData {
     /// Parse the response body into a S3ResponseData struct
     #[allow(async_fn_in_trait)]
-    async fn parse_body(response: &mut IncomingBody) -> Result<Self>
+    async fn parse_body(response: &mut Body) -> Result<Self>
     where
         Self: Sized;
 }
@@ -349,7 +346,7 @@ where
     T: S3ResponseData,
 {
     head: Parts,
-    body: IncomingBody,
+    body: Body,
     phantom: PhantomData<T>,
 }
 
@@ -357,7 +354,7 @@ impl<T> S3Response<T>
 where
     T: S3ResponseData,
 {
-    pub fn from_response(response: Response<IncomingBody>) -> Result<Self> {
+    pub fn from_response(response: Response<Body>) -> Result<Self> {
         let (head, body) = response.into_parts();
         Ok(Self {
             head,
@@ -370,7 +367,7 @@ where
         self.head.status
     }
 
-    pub fn into_parts(self) -> (Parts, IncomingBody) {
+    pub fn into_parts(self) -> (Parts, Body) {
         (self.head, self.body)
     }
 
@@ -587,13 +584,25 @@ where
 
         // SHA-256 hash of the payload
         let payload_hash = match &self.body {
-            Some(b) => hex::encode(Sha256::digest(&b)),
+            Some(b) => hex::encode(Sha256::digest(b)),
             None => hex::encode(Sha256::digest(AWS_SERVICE_EMPTY_PAYLOAD)),
         };
 
-        // Get host from the uri
+        // Get host from the uri.
+        //
+        // `Uri::host()` strips the port — e.g. `http://127.0.0.1:9000`
+        // returns `127.0.0.1`. That breaks SigV4 against any S3-compatible
+        // endpoint exposed on a non-default port (MinIO during local dev,
+        // Cloudflare R2 behind a custom port, in-cluster routes, …): the
+        // outbound request is sent to the bare host with no port, the
+        // signature is computed with no port in the canonical host header,
+        // and the request fails.
+        //
+        // `Uri::authority()` keeps the `host:port` form intact, which is
+        // what SigV4's canonical host header expects when a non-default
+        // port is in play.
         let host_uri = Uri::from_str(&self.endpoint)?;
-        let (scheme, host) = match (host_uri.scheme(), host_uri.host()) {
+        let (scheme, host) = match (host_uri.scheme(), host_uri.authority().map(|a| a.as_str())) {
             (None, Some(host)) => (&self.scheme, host),
             (Some(scheme), Some(host)) => (scheme, host),
             (_, None) => {
@@ -615,7 +624,7 @@ where
             .map(|(k, v)| format!("{k}:{v}"))
             .collect::<Vec<String>>()
             .join("\n");
-        canonical_headers.push_str("\n");
+        canonical_headers.push('\n');
         let signed_headers = canonical_headers_vec
             .iter()
             .map(|(k, _)| k.to_owned())
@@ -645,11 +654,12 @@ where
 
         // Authorization Header
         let authorization_header = format!(
-            "{AWS_SIGN_ALGORITHM} Credential={}/{credential_scope}, SignedHeaders={signed_headers}, Signature={signature}", self.access_key
+            "{AWS_SIGN_ALGORITHM} Credential={}/{credential_scope}, SignedHeaders={signed_headers}, Signature={signature}",
+            self.access_key
         );
 
         let body = match &self.body {
-            Some(b) => &b,
+            Some(b) => b,
             None => "".as_bytes(),
         };
 
@@ -665,17 +675,14 @@ where
             .header("authorization", authorization_header)
             .header("content-length", body.len().to_string());
 
-        match builder.headers_mut() {
-            Some(headers) => {
-                for (key, value) in &self.headers {
-                    headers.insert(HeaderName::from_str(&key)?, HeaderValue::from_str(&value)?);
-                }
+        if let Some(headers) = builder.headers_mut() {
+            for (key, value) in &self.headers {
+                headers.insert(HeaderName::from_str(key)?, HeaderValue::from_str(value)?);
             }
-            None => {}
         };
 
         let request = S3Request::<T> {
-            request: builder.body(body.into_body())?,
+            request: builder.body(body.into())?,
             phantom: PhantomData,
         };
 

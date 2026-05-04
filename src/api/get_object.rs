@@ -1,8 +1,5 @@
-use anyhow::{anyhow, Result};
-use wstd::{
-    http::{body::IncomingBody, Method},
-    io::AsyncRead,
-};
+use anyhow::{Result, anyhow};
+use wstd::http::{Body, Method};
 
 use super::{S3RequestBuilder, S3RequestData, S3ResponseData};
 
@@ -42,10 +39,12 @@ impl S3RequestData for GetObjectRequest {
         );
 
         if let Some(part_number) = self.part_number {
-            if part_number >= 1 && part_number <= 10000 {
+            if (1..=10000).contains(&part_number) {
                 builder.query("partNumber", Some(&part_number.to_string()));
             } else {
-                return Err(anyhow!("part_number has to be constrained to part_number >= 1 and part_number <= 10000, part_number is {part_number}"));
+                return Err(anyhow!(
+                    "part_number has to be constrained to part_number >= 1 and part_number <= 10000, part_number is {part_number}"
+                ));
             }
         }
         if let Some(version_id) = &self.version_id {
@@ -61,12 +60,11 @@ pub struct GetObjectResponse {
 }
 
 impl S3ResponseData for GetObjectResponse {
-    async fn parse_body(response: &mut IncomingBody) -> anyhow::Result<Self>
+    async fn parse_body(response: &mut Body) -> anyhow::Result<Self>
     where
         Self: Sized,
     {
-        let mut data = Vec::<u8>::new();
-        response.read_to_end(&mut data).await?;
+        let data = response.contents().await?.to_vec();
         Ok(Self { data })
     }
 }

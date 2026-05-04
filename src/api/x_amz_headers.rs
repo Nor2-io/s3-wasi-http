@@ -84,6 +84,7 @@ impl XAmzHeaders {
     }
 }
 
+#[derive(Default)]
 pub struct XAmzHeadersBuilder {
     checksum_mode: bool,
     expected_bucket_owner: Option<String>,
@@ -211,7 +212,7 @@ impl XAmzHeadersBuilder {
         let mut grants = self.grants;
         grants.push(grant);
         Self {
-            grants: grants,
+            grants,
             ..self
         }
     }
@@ -336,7 +337,7 @@ impl XAmzHeadersBuilder {
                     XAmzStorageClass::GlacierIR => "GLACIER_IR",
                     XAmzStorageClass::Snow => "SNOW",
                     XAmzStorageClass::ExpressOneZone => "EXPRESS_ONEZONE",
-                    XAmzStorageClass::StorageClass(class_str) => &class_str,
+                    XAmzStorageClass::StorageClass(class_str) => class_str,
                 };
 
                 Some(c.to_owned())
@@ -410,7 +411,7 @@ impl XAmzHeadersBuilder {
             ));
         }
 
-        if self.object_lock_legal_hold {}
+        
         if let Some(object_lock_mode) = &self.object_lock_mode {
             let lock_mode = match object_lock_mode {
                 XAmzObjectLockMode::Governance => "Governance",
@@ -461,35 +462,3 @@ impl XAmzHeadersBuilder {
     }
 }
 
-impl Default for XAmzHeadersBuilder {
-    fn default() -> Self {
-        Self {
-            checksum_mode: false,
-            expected_bucket_owner: None,
-            request_payer: false,
-
-            encryption_customer_algorithm: None,
-            encryption_customer_key: None,
-            encryption_customer_key_md5: None,
-            encryption_algorithm: None,
-            encryption_kms_key_id: None,
-            encryption_bucket_key: false,
-            encryption_context: None,
-
-            object_lock_legal_hold: false,
-            object_lock_mode: None,
-            object_lock_retain_until: None,
-
-            canned_acl: None,
-            checksum: None,
-            grants: Vec::new(),
-            storage_class: None,
-
-            tagging: Vec::new(),
-            website_redirect_location: None,
-            write_offset: None,
-
-            headers: Vec::new(),
-        }
-    }
-}

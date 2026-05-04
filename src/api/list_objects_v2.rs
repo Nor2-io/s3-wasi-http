@@ -1,17 +1,15 @@
 use std::i32;
 
-use anyhow::{anyhow, Result};
-use wstd::{
-    http::{body::IncomingBody, Method},
-    io::AsyncRead,
-};
-use xml::{reader::XmlEvent, EventReader};
+use anyhow::{Result, anyhow};
+use wstd::http::{Body, Method};
+use xml::{EventReader, reader::XmlEvent};
 
 use super::{
-    parse_xml_bool, parse_xml_string, parse_xml_value, ApiObject, S3RequestBuilder, S3RequestData,
-    S3ResponseData,
+    ApiObject, S3RequestBuilder, S3RequestData, S3ResponseData, parse_xml_bool, parse_xml_string,
+    parse_xml_value,
 };
 
+#[derive(Default)]
 pub struct ListObjectsV2Request {
     pub token: Option<String>,
     pub delimiter: Option<char>,
@@ -21,18 +19,6 @@ pub struct ListObjectsV2Request {
     pub start_after: Option<String>,
 }
 
-impl Default for ListObjectsV2Request {
-    fn default() -> Self {
-        Self {
-            token: None,
-            delimiter: None,
-            encoding_type: None,
-            fetch_owner: false,
-            max_keys: None,
-            start_after: None,
-        }
-    }
-}
 
 impl S3RequestData for ListObjectsV2Request {
     type ResponseType = ListObjectsV2Response;
@@ -87,13 +73,12 @@ pub struct ListObjectsV2Response {
 }
 
 impl S3ResponseData for ListObjectsV2Response {
-    async fn parse_body(response: &mut IncomingBody) -> Result<Self>
+    async fn parse_body(response: &mut Body) -> Result<Self>
     where
         Self: Sized,
     {
-        let mut data = Vec::<u8>::new();
-        response.read_to_end(&mut data).await?;
-        let mut parser = EventReader::new(data.as_slice());
+        let data = response.contents().await?;
+        let mut parser = EventReader::new(data);
 
         let mut list_objects_response = ListObjectsV2Response {
             common_prefixes: Vec::new(),

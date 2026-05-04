@@ -588,9 +588,21 @@ where
             None => hex::encode(Sha256::digest(AWS_SERVICE_EMPTY_PAYLOAD)),
         };
 
-        // Get host from the uri
+        // Get host from the uri.
+        //
+        // `Uri::host()` strips the port — e.g. `http://127.0.0.1:9000`
+        // returns `127.0.0.1`. That breaks SigV4 against any S3-compatible
+        // endpoint exposed on a non-default port (MinIO during local dev,
+        // Cloudflare R2 behind a custom port, in-cluster routes, …): the
+        // outbound request is sent to the bare host with no port, the
+        // signature is computed with no port in the canonical host header,
+        // and the request fails.
+        //
+        // `Uri::authority()` keeps the `host:port` form intact, which is
+        // what SigV4's canonical host header expects when a non-default
+        // port is in play.
         let host_uri = Uri::from_str(&self.endpoint)?;
-        let (scheme, host) = match (host_uri.scheme(), host_uri.host()) {
+        let (scheme, host) = match (host_uri.scheme(), host_uri.authority().map(|a| a.as_str())) {
             (None, Some(host)) => (&self.scheme, host),
             (Some(scheme), Some(host)) => (scheme, host),
             (_, None) => {
